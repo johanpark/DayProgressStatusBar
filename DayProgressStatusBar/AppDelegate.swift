@@ -13,29 +13,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var popover: NSPopover!
     var timer: Timer?
     
-    let schedules: [Schedule] = [
-        Schedule(
-            id: UUID(),
-            title: "회사",
-            start: DateComponents(hour: 9, minute: 0),
-            end: DateComponents(hour: 18, minute: 0),
-            colorHex: "#3182CE"
-        ),
-        Schedule(
-            id: UUID(),
-            title: "헬스장",
-            start: DateComponents(hour: 19, minute: 10),
-            end: DateComponents(hour: 20, minute: 15),
-            colorHex: "#38A169"
-        ),
-        Schedule(
-            id: UUID(),
-            title: "공부",
-            start: DateComponents(hour: 21, minute: 0),
-            end: DateComponents(hour: 23, minute: 0),
-            colorHex: "#DD6B20"
-        ),
-    ]
+    var schedules: [Schedule] {
+        ScheduleStorage.shared.load()
+    }
     
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
@@ -53,6 +33,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) {
             _ in self.updateStatusBarPercent()
         }
+        updateStatusBarPercent()
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(scheduleListDidUpdate),
+            name: .scheduleListUpdated,
+            object: nil
+        )
+    }
+    
+    @objc func scheduleListDidUpdate() {
         updateStatusBarPercent()
     }
     
