@@ -14,6 +14,7 @@ struct Schedule : Codable, Identifiable{
     let start : DateComponents
     let end : DateComponents
     let colorHex : String
+    var isRepresentative: Bool
     
     var color: NSColor {
           NSColor(hex: colorHex) ?? .systemBlue

@@ -128,7 +128,7 @@ class ScheduleEditWindowController: NSWindowController {
         }
 
         let hex = colorWell.color.hexString
-        let newSchedule = Schedule(id: UUID(), title: title, start: startComp, end: endComp, colorHex: hex)
+        let newSchedule = Schedule(id: UUID(), title: title, start: startComp, end: endComp, colorHex: hex, isRepresentative: false)
 
         NotificationCenter.default.post(name: .scheduleSaved, object: (newSchedule, editingIndex))
         self.close()

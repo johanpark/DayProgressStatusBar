@@ -10,7 +10,6 @@ import Cocoa
 class PopoverViewController : NSViewController {
     var schedules: [Schedule] = ScheduleStorage.shared.load()
     
-    var formView: ScheduleFormView?
     var isEditing: Bool = false
     var editingIndex: Int?
     
@@ -37,12 +36,6 @@ class PopoverViewController : NSViewController {
             stackView.trailingAnchor.constraint(equalTo: baseView.trailingAnchor, constant: -10),
             stackView.topAnchor.constraint(equalTo: baseView.topAnchor, constant: 10)
         ])
-
-        // Add ScheduleFormView into stack (initially hidden)
-        let form = ScheduleFormView(frame: NSRect(x: 0, y: 0, width: width - 20, height: 140))
-        form.isHidden = true
-        self.formView = form
-        stackView.addArrangedSubview(form)
 
         // + button at the bottom
         let addButton = NSButton(title: "+", target: self, action: #selector(addScheduleTapped))
@@ -166,6 +159,12 @@ class PopoverViewController : NSViewController {
         hStack.spacing = 8
         hStack.alignment = .centerY
         hStack.translatesAutoresizingMaskIntoConstraints = false
+        
+        let repButton = NSButton(title: schedule.isRepresentative ? "●" : "○", target: self, action: #selector(toggleRepresentative(_:)))
+        repButton.tag = idx
+        repButton.bezelStyle = .inline
+        repButton.setButtonType(.momentaryPushIn)
+        repButton.setContentHuggingPriority(.required, for: .horizontal)
 
         let label = NSTextField(labelWithString: "\(formatTime(start)) ~ \(formatTime(end)) \(schedule.title) \(percent)%")
         label.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
@@ -185,6 +184,7 @@ class PopoverViewController : NSViewController {
         deleteButton.bezelStyle = .inline
         deleteButton.setContentHuggingPriority(.required, for: .horizontal)
 
+        hStack.addArrangedSubview(repButton)
         hStack.addArrangedSubview(label)
         hStack.addArrangedSubview(editButton)
         hStack.addArrangedSubview(deleteButton)
@@ -217,180 +217,21 @@ class PopoverViewController : NSViewController {
         reloadSchedules()
     }
     
+    @objc func toggleRepresentative(_ sender: NSButton) {
+        let idx = sender.tag
+        for i in 0..<schedules.count {
+            schedules[i].isRepresentative = (i == idx)
+        }
+        ScheduleStorage.shared.save(schedules)
+        NotificationCenter.default.post(name: .scheduleListUpdated, object: nil)
+        reloadSchedules()
+    }
+    
     func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "HH:mm"
         formatter.timeZone = TimeZone.current
         return formatter.string(from: date)
-    }
-    
-    func progress(for schedule : Schedule) -> Double {
-        var calendar = Calendar.current
-        calendar.timeZone = TimeZone.current
-        let now  = Date()
-        let today = calendar.dateComponents([.year, .month, .day], from: now)
-        
-        // 오늘 날짜로 강제 세팅
-        var startComp = schedule.start
-        var endComp = schedule.end
-        startComp.year = today.year
-        startComp.month = today.month
-        startComp.day = today.day
-        endComp.year = today.year
-        endComp.month = today.month
-        endComp.day = today.day
-        
-        guard let start = calendar.date(from: startComp),
-              let end = calendar.date(from: endComp) else { return 0 }
-        
-        if now <= start { return 0 }
-        if now >= end { return 1 }
-        let total = end.timeIntervalSince(start)
-        let passed = now.timeIntervalSince(start)
-        return passed / total
-    }
-    
-    
-    // ScheduleFormView: 등록/수정 폼 (팝오버 내에 뷰로 삽입)
-    class ScheduleFormView : NSView {
-        var titleField: NSTextField
-        var startPicker : NSDatePicker
-        var endPicker:NSDatePicker
-        var colorWell : NSColorWell
-        var saveButton: NSButton
-        var cancelButton: NSButton
-        
-        
-        override init(frame frameRect: NSRect) {
-            titleField = NSTextField(frame: NSRect(x: 10, y: 100, width: 230, height: 24))
-            startPicker = NSDatePicker(frame: NSRect(x: 10, y: 70, width: 230, height: 24))
-            endPicker = NSDatePicker(frame: NSRect(x: 10, y: 40, width: 230, height: 24))
-            colorWell = NSColorWell(frame: NSRect(x: 10, y: 10, width: 50, height: 24))
-            saveButton = NSButton(frame: NSRect(x: 70, y: 10, width: 50, height: 24))
-            cancelButton = NSButton(frame: NSRect(x: 130, y: 10, width: 50, height: 24))
-            super.init(frame: frameRect)
-            saveButton.title = "Save"
-            cancelButton.title = "Cancel"
-            addSubview(titleField)
-            addSubview(startPicker)
-            addSubview(endPicker)
-            addSubview(colorWell)
-            addSubview(saveButton)
-            addSubview(cancelButton)
-        }
-
-        required init?(coder: NSCoder) {
-            fatalError("init(coder:) has not been implemented")
-        }
-    }
-    
-    func showScheduleForm(editing index: Int?) {
-
-        
-        formView?.removeFromSuperview()  // 기존 폼 제거
-        
-        let form = ScheduleFormView(frame: NSRect(x: 10, y: view.frame.height - 160, width: 250, height: 140))
-        self.formView = form
-        self.view.addSubview(form)
-        
-        if let i = index {
-            //수정 : 값 세팅
-            let schedule = schedules[i]
-            form.titleField.stringValue = schedule.title
-            form.startPicker.dateValue = Calendar.current.date(from: schedule.start) ?? Date()
-            form.endPicker.dateValue = Calendar.current.date(from: schedule.end) ?? Date()
-            form.colorWell.color = NSColor(hex: schedule.colorHex) ?? .systemBlue
-        } else {
-            // 등록 : 초기화
-            form.titleField.stringValue = ""
-            form.startPicker.dateValue = Date()
-            form.endPicker.dateValue = Date()
-            form.colorWell.color = NSColor.systemBlue
-            editingIndex = nil
-        }
-        
-        form.saveButton.target = self
-        form.saveButton.action = #selector(saveScheduleTapped)
-        
-        form.cancelButton.target = self
-        form.cancelButton.action = #selector(cancelScheduleTapped)
-    }
-    
-    @objc func saveScheduleTapped() {
-        guard let form = formView else { return }
-
-        let title = form.titleField.stringValue
-        let now = Date()
-        let today = Calendar.current.dateComponents([.year, .month, .day], from: now)
-
-        var start = Calendar.current.dateComponents([.hour, .minute], from: form.startPicker.dateValue)
-        var end = Calendar.current.dateComponents([.hour, .minute], from: form.endPicker.dateValue)
-
-        start.year = today.year
-        start.month = today.month
-        start.day = today.day
-
-        end.year = today.year
-        end.month = today.month
-        end.day = today.day
-
-        let colorHex = form.colorWell.color.hexString
-
-        let newSchedule = Schedule(id: UUID(), title: title, start: start, end: end, colorHex: colorHex)
-
-        if hasConflictSchedule(start: start, end: end, ignoreIndex: editingIndex) {
-            let alert = NSAlert()
-            alert.messageText = "중복된 일정이 있습니다."
-            alert.informativeText = "겹치지 않도록 시간을 조정해주세요."
-            alert.runModal()
-            return
-        }
-
-        if let i = editingIndex {
-            schedules[i] = newSchedule
-            ScheduleStorage.shared.save(schedules)
-        } else {
-            schedules.append(newSchedule)
-            ScheduleStorage.shared.save(schedules)
-        }
-
-        form.removeFromSuperview()
-        formView = nil
-        editingIndex = nil
-        NotificationCenter.default.post(name: .scheduleListUpdated, object: nil)
-        reloadSchedules()
-    }
-    
-    func hasConflictSchedule(start: DateComponents, end: DateComponents, ignoreIndex: Int? = nil) -> Bool {
-        let calendar = Calendar.current
-
-        for (index, schedule) in schedules.enumerated() {
-            if let ignore = ignoreIndex, index == ignore { continue }
-
-            guard let s1 = calendar.date(from: schedule.start),
-                  let e1 = calendar.date(from: schedule.end),
-                  let s2 = calendar.date(from: start),
-                  let e2 = calendar.date(from: end) else { continue }
-
-            // 겹치는 시간 여부
-            if s1 < e2 && s2 < e1 {
-                return true
-            }
-        }
-        return false
-    }
-    
-    @objc func cancelScheduleTapped() {
-        formView?.removeFromSuperview()
-        formView = nil
-    }
-    
-    func saveSchedule() {
-        // formView에서 값 읽기
-        // 신규/수정 분기
-        // 1) 겹치는 시간 체크
-        // 2) 문제없으면 schedules에 반영
-        // 폼 뷰 remove, 리스트 리로드
     }
     
     func deleteSchedule(at index: Int) {
@@ -419,16 +260,6 @@ class PopoverViewController : NSViewController {
             stackView.trailingAnchor.constraint(equalTo: baseView.trailingAnchor, constant: -10),
             stackView.topAnchor.constraint(equalTo: baseView.topAnchor, constant: 10)
         ])
-
-        // Add ScheduleFormView into stack (initially hidden)
-        if formView == nil {
-            let form = ScheduleFormView(frame: NSRect(x: 0, y: 0, width: width - 20, height: 140))
-            form.isHidden = true
-            self.formView = form
-        }
-        if let form = formView {
-            stackView.addArrangedSubview(form)
-        }
 
         // + button at the bottom
         let addButton = NSButton(title: "+", target: self, action: #selector(addScheduleTapped))
