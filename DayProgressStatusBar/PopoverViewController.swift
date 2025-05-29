@@ -14,6 +14,8 @@ class PopoverViewController : NSViewController {
     var isEditing: Bool = false
     var editingIndex: Int?
     
+    var activeWindowController: ScheduleEditWindowController?
+    
     override func loadView() {
         let itemHeight = 40
         let maxVisible = 4
@@ -116,7 +118,9 @@ class PopoverViewController : NSViewController {
     }
     
     @objc func addScheduleTapped() {
-        showScheduleForm(editing: nil)
+        let editor = ScheduleEditWindowController(schedule: nil)
+        self.activeWindowController = editor
+        editor.showWindow(nil)
     }
     
     
@@ -200,7 +204,11 @@ class PopoverViewController : NSViewController {
     }
     
     @objc func editScheduleTapped(_ sender: NSButton) {
-        showScheduleForm(editing: sender.tag)
+        let idx = sender.tag
+        let schedule = schedules[idx]
+        let editor = ScheduleEditWindowController(schedule: schedule, index: idx)
+        self.activeWindowController = editor
+        editor.showWindow(nil)
     }
     
     @objc func deleteScheduleTapped(_ sender: NSButton) {
@@ -493,5 +501,38 @@ class PopoverViewController : NSViewController {
         let minHeight: CGFloat = 160
         let totalHeight = max(minHeight, contentHeight)
         baseView.setFrameSize(NSSize(width: width, height: totalHeight))
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleScheduleSaved(_:)),
+            name: .scheduleSaved,
+            object: nil
+        )
+    }
+    
+    @objc func handleScheduleSaved(_ notification: Notification) {
+        guard let (schedule, index) = notification.object as? (Schedule, Int?) else { return }
+
+        if let i = index {
+            // 수정된 일정 반영
+            schedules[i] = schedule
+        } else {
+            // 신규 일정 추가
+            schedules.append(schedule)
+        }
+
+        // 저장
+        ScheduleStorage.shared.save(schedules)
+
+        // UI 리로드
+        reloadSchedules()
+    }
+    
+    deinit {
+        NotificationCenter.default.removeObserver(self)
     }
 }
