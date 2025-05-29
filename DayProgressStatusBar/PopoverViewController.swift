@@ -219,9 +219,14 @@ class PopoverViewController : NSViewController {
     
     @objc func toggleRepresentative(_ sender: NSButton) {
         let idx = sender.tag
+        let isCurrentlyRepresentative = schedules[idx].isRepresentative
+
         for i in 0..<schedules.count {
-            schedules[i].isRepresentative = (i == idx)
+            schedules[i].isRepresentative = false
         }
+        
+        schedules[idx].isRepresentative = !isCurrentlyRepresentative
+        
         ScheduleStorage.shared.save(schedules)
         NotificationCenter.default.post(name: .scheduleListUpdated, object: nil)
         reloadSchedules()
