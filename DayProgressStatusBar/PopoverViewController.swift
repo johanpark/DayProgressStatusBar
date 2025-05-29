@@ -15,17 +15,23 @@ class PopoverViewController : NSViewController {
     
     var activeWindowController: ScheduleEditWindowController?
     
+    // baseView, stackView, scrollView, innerStack, addButton, spacer를 인스턴스 변수로 선언
+    let baseView = NSView()
+    let stackView = NSStackView()
+    let scrollView = NSScrollView()
+    let innerStack = NSStackView()
+    let addButton = NSButton(title: "+", target: nil, action: nil)
+    let spacer = NSView()
+    var scrollHeightConstraint: NSLayoutConstraint?
+    
     override func loadView() {
-        let itemHeight = 40
-        let maxVisible = 4
         let width: CGFloat = 270
-        let baseView = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 200))
+        baseView.frame = NSRect(x: 0, y: 0, width: width, height: 200)
         baseView.wantsLayer = true
         baseView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
         self.view = baseView
 
-        // Create vertical stack view
-        let stackView = NSStackView()
+        // StackView 설정
         stackView.orientation = .vertical
         stackView.spacing = 10
         stackView.alignment = .leading
@@ -34,80 +40,52 @@ class PopoverViewController : NSViewController {
         NSLayoutConstraint.activate([
             stackView.leadingAnchor.constraint(equalTo: baseView.leadingAnchor, constant: 10),
             stackView.trailingAnchor.constraint(equalTo: baseView.trailingAnchor, constant: -10),
-            stackView.topAnchor.constraint(equalTo: baseView.topAnchor, constant: 10)
+            stackView.topAnchor.constraint(equalTo: baseView.topAnchor, constant: 10),
+            stackView.bottomAnchor.constraint(equalTo: baseView.bottomAnchor, constant: -10)
         ])
 
-        // + button at the bottom
-        let addButton = NSButton(title: "+", target: self, action: #selector(addScheduleTapped))
+        // scrollView, innerStack 설정
+        scrollView.hasVerticalScroller = true
+        scrollView.hasHorizontalScroller = false
+        scrollView.borderType = .noBorder
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        scrollView.drawsBackground = false
+        scrollView.autohidesScrollers = true
+        scrollView.documentView = innerStack
+
+        innerStack.orientation = .vertical
+        innerStack.spacing = 10
+        innerStack.alignment = .leading
+        innerStack.translatesAutoresizingMaskIntoConstraints = false
+        // innerStack이 scrollView.contentView에 정확히 맞도록 제약 추가
+        NSLayoutConstraint.activate([
+            innerStack.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
+            innerStack.trailingAnchor.constraint(equalTo: scrollView.contentView.trailingAnchor),
+            innerStack.topAnchor.constraint(equalTo: scrollView.contentView.topAnchor),
+            innerStack.bottomAnchor.constraint(equalTo: scrollView.contentView.bottomAnchor),
+            innerStack.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor)
+        ])
+
+        // scrollView의 heightAnchor 제약을 한 번만 추가
+        scrollHeightConstraint = scrollView.heightAnchor.constraint(equalToConstant: 160)
+        scrollHeightConstraint?.isActive = true
+
+        // addButton 설정
+        addButton.title = "+"
+        addButton.target = self
+        addButton.action = #selector(addScheduleTapped)
         addButton.setContentHuggingPriority(.required, for: .horizontal)
         addButton.setContentHuggingPriority(.required, for: .vertical)
-
-        // If no schedules, show label
-        if schedules.isEmpty {
-            let label = NSTextField(labelWithString: "등록된 일정이 없습니다.")
-            label.font = NSFont.systemFont(ofSize: 16, weight: .medium)
-            label.textColor = NSColor.secondaryLabelColor
-            label.alignment = .center
-            label.translatesAutoresizingMaskIntoConstraints = false
-            stackView.addArrangedSubview(label)
-            // Add stretchable space before addButton
-            let spacer = NSView()
-            spacer.setContentHuggingPriority(.defaultLow, for: .vertical)
-            stackView.addArrangedSubview(spacer)
-            stackView.addArrangedSubview(addButton)
-            // Set content height
-            let contentHeight: CGFloat = 160
-            baseView.setFrameSize(NSSize(width: width, height: contentHeight))
-            return
-        }
-
-        // Schedule views
-        let now = Date()
-        let calendar = Calendar.current
-        let today = calendar.dateComponents([.year, .month, .day], from: now)
-        var scheduleViews: [NSView] = []
-        for (idx, schedule) in schedules.enumerated() {
-            guard let (start, end) = resolvedDateRange(from: schedule, on: today, using: calendar) else { continue }
-            let progress = clampedProgress(from: now, start: start, end: end)
-            let percent = Int(progress * 100)
-            let views = makeScheduleStackItem(for: idx, schedule: schedule, percent: percent, progress: progress, start: start, end: end)
-            scheduleViews.append(views)
-        }
-        // If too many, wrap in scrollview
-        if scheduleViews.count > maxVisible {
-            let scrollView = NSScrollView()
-            scrollView.hasVerticalScroller = true
-            scrollView.hasHorizontalScroller = false
-            scrollView.borderType = .noBorder
-            scrollView.translatesAutoresizingMaskIntoConstraints = false
-            let innerStack = NSStackView(views: scheduleViews)
-            innerStack.orientation = .vertical
-            innerStack.spacing = 10
-            innerStack.alignment = .leading
-            innerStack.translatesAutoresizingMaskIntoConstraints = false
-            scrollView.documentView = innerStack
-            scrollView.contentView.postsBoundsChangedNotifications = true
-            scrollView.drawsBackground = false
-            scrollView.autohidesScrollers = true
-            scrollView.hasVerticalScroller = true
-            // Set scrollView height to show maxVisible items
-            let scrollHeight: CGFloat = CGFloat(maxVisible) * CGFloat(itemHeight) + CGFloat((maxVisible-1)*10)
-            scrollView.heightAnchor.constraint(equalToConstant: scrollHeight).isActive = true
-            stackView.addArrangedSubview(scrollView)
-        } else {
-            scheduleViews.forEach { stackView.addArrangedSubview($0) }
-        }
-        // Add stretchable space before addButton
-        let spacer = NSView()
+        
+        // spacer 설정
         spacer.setContentHuggingPriority(.defaultLow, for: .vertical)
+
+        // stackView에 scrollView, spacer, addButton만 고정 추가
+        stackView.addArrangedSubview(scrollView)
         stackView.addArrangedSubview(spacer)
         stackView.addArrangedSubview(addButton)
-        // Calculate content height
-        let visibleCount = min(schedules.count, maxVisible)
-        let contentHeight = CGFloat(visibleCount * itemHeight + 20 + 40 + 10 * (visibleCount-1))
-        let minHeight: CGFloat = 160
-        let totalHeight = max(minHeight, contentHeight)
-        baseView.setFrameSize(NSSize(width: width, height: totalHeight))
+
+        reloadSchedules()
     }
     
     @objc func addScheduleTapped() {
@@ -165,11 +143,14 @@ class PopoverViewController : NSViewController {
         repButton.bezelStyle = .inline
         repButton.setButtonType(.momentaryPushIn)
         repButton.setContentHuggingPriority(.required, for: .horizontal)
+        repButton.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         let label = NSTextField(labelWithString: "\(formatTime(start)) ~ \(formatTime(end)) \(schedule.title) \(percent)%")
         label.font = NSFont.systemFont(ofSize: 14, weight: .semibold)
         label.textColor = NSColor.labelColor
         label.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        label.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
+        label.maximumNumberOfLines = 1
         label.lineBreakMode = .byTruncatingTail
         label.translatesAutoresizingMaskIntoConstraints = false
 
@@ -178,11 +159,13 @@ class PopoverViewController : NSViewController {
         editButton.setButtonType(.momentaryPushIn)
         editButton.bezelStyle = .inline
         editButton.setContentHuggingPriority(.required, for: .horizontal)
+        editButton.setContentCompressionResistancePriority(.required, for: .horizontal)
         let deleteButton = NSButton(title: "🗑", target: self, action: #selector(deleteScheduleTapped(_:)))
         deleteButton.tag = idx
         deleteButton.setButtonType(.momentaryPushIn)
         deleteButton.bezelStyle = .inline
         deleteButton.setContentHuggingPriority(.required, for: .horizontal)
+        deleteButton.setContentCompressionResistancePriority(.required, for: .horizontal)
 
         hStack.addArrangedSubview(repButton)
         hStack.addArrangedSubview(label)
@@ -245,31 +228,17 @@ class PopoverViewController : NSViewController {
     }
     
     func reloadSchedules() {
-        // Remove all subviews from the view
-        view.subviews.forEach { $0.removeFromSuperview() }
+        // innerStack의 arrangedSubviews만 모두 제거
+        for subview in innerStack.arrangedSubviews {
+            innerStack.removeArrangedSubview(subview)
+            subview.removeFromSuperview()
+        }
 
         let itemHeight = 40
         let maxVisible = 4
         let width: CGFloat = 270
-        let baseView = view
 
-        // Create vertical stack view
-        let stackView = NSStackView()
-        stackView.orientation = .vertical
-        stackView.spacing = 10
-        stackView.alignment = .leading
-        stackView.translatesAutoresizingMaskIntoConstraints = false
-        baseView.addSubview(stackView)
-        NSLayoutConstraint.activate([
-            stackView.leadingAnchor.constraint(equalTo: baseView.leadingAnchor, constant: 10),
-            stackView.trailingAnchor.constraint(equalTo: baseView.trailingAnchor, constant: -10),
-            stackView.topAnchor.constraint(equalTo: baseView.topAnchor, constant: 10)
-        ])
-
-        // + button at the bottom
-        let addButton = NSButton(title: "+", target: self, action: #selector(addScheduleTapped))
-        addButton.setContentHuggingPriority(.required, for: .horizontal)
-        addButton.setContentHuggingPriority(.required, for: .vertical)
+        schedules = ScheduleStorage.shared.load()
 
         // If no schedules, show label
         if schedules.isEmpty {
@@ -278,15 +247,11 @@ class PopoverViewController : NSViewController {
             label.textColor = NSColor.secondaryLabelColor
             label.alignment = .center
             label.translatesAutoresizingMaskIntoConstraints = false
-            stackView.addArrangedSubview(label)
-            // Add stretchable space before addButton
-            let spacer = NSView()
-            spacer.setContentHuggingPriority(.defaultLow, for: .vertical)
-            stackView.addArrangedSubview(spacer)
-            stackView.addArrangedSubview(addButton)
-            // Set content height
+            innerStack.addArrangedSubview(label)
             let contentHeight: CGFloat = 160
-            baseView.setFrameSize(NSSize(width: width, height: contentHeight))
+            scrollHeightConstraint?.constant = contentHeight - 20
+            let totalHeight = contentHeight + 20 + 40 // scroll + spacer + addButton
+            baseView.setFrameSize(NSSize(width: width, height: totalHeight))
             return
         }
 
@@ -299,43 +264,16 @@ class PopoverViewController : NSViewController {
             guard let (start, end) = resolvedDateRange(from: schedule, on: today, using: calendar) else { continue }
             let progress = clampedProgress(from: now, start: start, end: end)
             let percent = Int(progress * 100)
-            let view = makeScheduleStackItem(for: idx, schedule: schedule, percent: percent, progress: progress, start: start, end: end)
-            scheduleViews.append(view)
+            let views = makeScheduleStackItem(for: idx, schedule: schedule, percent: percent, progress: progress, start: start, end: end)
+            scheduleViews.append(views)
         }
-        // If too many, wrap in scrollview
-        if scheduleViews.count > maxVisible {
-            let scrollView = NSScrollView()
-            scrollView.hasVerticalScroller = true
-            scrollView.hasHorizontalScroller = false
-            scrollView.borderType = .noBorder
-            scrollView.translatesAutoresizingMaskIntoConstraints = false
-            let innerStack = NSStackView(views: scheduleViews)
-            innerStack.orientation = .vertical
-            innerStack.spacing = 10
-            innerStack.alignment = .leading
-            innerStack.translatesAutoresizingMaskIntoConstraints = false
-            scrollView.documentView = innerStack
-            scrollView.contentView.postsBoundsChangedNotifications = true
-            scrollView.drawsBackground = false
-            scrollView.autohidesScrollers = true
-            scrollView.hasVerticalScroller = true
-            // Set scrollView height to show maxVisible items
-            let scrollHeight: CGFloat = CGFloat(maxVisible) * CGFloat(itemHeight) + CGFloat((maxVisible-1)*10)
-            scrollView.heightAnchor.constraint(equalToConstant: scrollHeight).isActive = true
-            stackView.addArrangedSubview(scrollView)
-        } else {
-            scheduleViews.forEach { stackView.addArrangedSubview($0) }
-        }
-        // Add stretchable space before addButton
-        let spacer = NSView()
-        spacer.setContentHuggingPriority(.defaultLow, for: .vertical)
-        stackView.addArrangedSubview(spacer)
-        stackView.addArrangedSubview(addButton)
-        // Calculate content height
+        scheduleViews.forEach { innerStack.addArrangedSubview($0) }
         let visibleCount = min(schedules.count, maxVisible)
-        let contentHeight = CGFloat(visibleCount * itemHeight + 20 + 40 + 10 * (visibleCount-1))
+        let scrollHeight: CGFloat = CGFloat(visibleCount * itemHeight + (visibleCount-1)*10)
         let minHeight: CGFloat = 160
-        let totalHeight = max(minHeight, contentHeight)
+        let scrollFinalHeight = max(minHeight - 20, scrollHeight)
+        scrollHeightConstraint?.constant = scrollFinalHeight
+        let totalHeight = scrollFinalHeight + 20 + 40 // scroll + spacer + addButton
         baseView.setFrameSize(NSSize(width: width, height: totalHeight))
     }
     

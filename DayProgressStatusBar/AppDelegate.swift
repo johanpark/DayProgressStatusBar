@@ -87,7 +87,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func calculatePercent(for schedule: Schedule, on today: DateComponents, now: Date) -> Int {
-        var calendar = Calendar.current
+        let calendar = Calendar.current
         var startComp = schedule.start
         var endComp = schedule.end
         startComp.year = today.year; startComp.month = today.month; startComp.day = today.day
@@ -103,9 +103,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             if popover.isShown {
                 popover.performClose(sender)
             } else {
-                let popVC = PopoverViewController()
-                            popover.contentViewController = popVC
-                            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+                popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
             }
         }
     }
