@@ -7,7 +7,7 @@
 
 import Cocoa
 
-class PopoverViewController : NSViewController {
+class PopoverViewController : NSViewController, NSPopoverDelegate {
     var schedules: [Schedule] = ScheduleStorage.shared.load()
     
     var isEditing: Bool = false
@@ -24,9 +24,19 @@ class PopoverViewController : NSViewController {
     let spacer = NSView()
     var scrollHeightConstraint: NSLayoutConstraint?
     
+    // --- 추가: 대표 일정 카드, 더보기, 인라인 추가, 설정 버튼 관련 변수 ---
+    let cardContainer = NSView()
+    let cardTitleLabel = NSTextField(labelWithString: "")
+    let cardTimeLabel = NSTextField(labelWithString: "")
+    let cardProgressBar = NSProgressIndicator()
+    let moreButton = NSButton(title: "더보기", target: nil, action: nil)
+    let settingsButton = NSButton(title: "설정", target: nil, action: nil)
+    var isExpanded = false
+    var isAdding = false
+    
     override func loadView() {
         let width: CGFloat = 270
-        baseView.frame = NSRect(x: 0, y: 0, width: width, height: 200)
+        baseView.frame = NSRect(x: 0, y: 0, width: width, height: 320)
         baseView.wantsLayer = true
         baseView.layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
         self.view = baseView
@@ -44,7 +54,47 @@ class PopoverViewController : NSViewController {
             stackView.bottomAnchor.constraint(equalTo: baseView.bottomAnchor, constant: -10)
         ])
 
-        // scrollView, innerStack 설정
+        // --- 대표 일정 카드 UI ---
+        cardContainer.wantsLayer = true
+        cardContainer.layer?.backgroundColor = NSColor.systemGray.withAlphaComponent(0.12).cgColor
+        cardContainer.layer?.cornerRadius = 8
+        cardContainer.translatesAutoresizingMaskIntoConstraints = false
+        cardTitleLabel.font = NSFont.systemFont(ofSize: 16, weight: .bold)
+        cardTitleLabel.textColor = NSColor.labelColor
+        cardTimeLabel.font = NSFont.systemFont(ofSize: 13, weight: .regular)
+        cardTimeLabel.textColor = NSColor.secondaryLabelColor
+        cardTimeLabel.isHidden = false
+        cardTimeLabel.maximumNumberOfLines = 1
+        cardTimeLabel.lineBreakMode = .byTruncatingTail
+        cardProgressBar.minValue = 0
+        cardProgressBar.maxValue = 1
+        cardProgressBar.isIndeterminate = false
+        cardProgressBar.controlSize = .regular
+        cardProgressBar.translatesAutoresizingMaskIntoConstraints = false
+        cardContainer.addSubview(cardTitleLabel)
+        cardContainer.addSubview(cardTimeLabel)
+        cardContainer.addSubview(cardProgressBar)
+        cardTitleLabel.translatesAutoresizingMaskIntoConstraints = false
+        cardTimeLabel.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            cardTitleLabel.leadingAnchor.constraint(equalTo: cardContainer.leadingAnchor, constant: 12),
+            cardTitleLabel.topAnchor.constraint(equalTo: cardContainer.topAnchor, constant: 10),
+            cardTitleLabel.trailingAnchor.constraint(equalTo: cardContainer.trailingAnchor, constant: -12),
+            cardTimeLabel.leadingAnchor.constraint(equalTo: cardTitleLabel.leadingAnchor),
+            cardTimeLabel.topAnchor.constraint(equalTo: cardTitleLabel.bottomAnchor, constant: 2),
+            cardTimeLabel.trailingAnchor.constraint(equalTo: cardTitleLabel.trailingAnchor),
+            cardProgressBar.leadingAnchor.constraint(equalTo: cardTitleLabel.leadingAnchor),
+            cardProgressBar.trailingAnchor.constraint(equalTo: cardTitleLabel.trailingAnchor),
+            cardProgressBar.topAnchor.constraint(equalTo: cardTimeLabel.bottomAnchor, constant: 10),
+            cardProgressBar.heightAnchor.constraint(equalToConstant: 10),
+            cardProgressBar.bottomAnchor.constraint(equalTo: cardContainer.bottomAnchor, constant: -10)
+        ])
+        cardContainer.heightAnchor.constraint(equalToConstant: 90).isActive = true
+        stackView.addArrangedSubview(cardContainer)
+        // cardContainer가 stackView 전체 너비를 차지하도록 제약 추가 (addArrangedSubview 이후!)
+        cardContainer.widthAnchor.constraint(equalTo: stackView.widthAnchor).isActive = true
+
+        // --- 일정 리스트(스크롤) ---
         scrollView.hasVerticalScroller = true
         scrollView.hasHorizontalScroller = false
         scrollView.borderType = .noBorder
@@ -52,12 +102,11 @@ class PopoverViewController : NSViewController {
         scrollView.drawsBackground = false
         scrollView.autohidesScrollers = true
         scrollView.documentView = innerStack
-
         innerStack.orientation = .vertical
-        innerStack.spacing = 10
+        innerStack.spacing = 4
         innerStack.alignment = .leading
         innerStack.translatesAutoresizingMaskIntoConstraints = false
-        // innerStack이 scrollView.contentView에 정확히 맞도록 제약 추가
+        innerStack.autoresizingMask = [.width]
         NSLayoutConstraint.activate([
             innerStack.leadingAnchor.constraint(equalTo: scrollView.contentView.leadingAnchor),
             innerStack.trailingAnchor.constraint(equalTo: scrollView.contentView.trailingAnchor),
@@ -65,26 +114,42 @@ class PopoverViewController : NSViewController {
             innerStack.bottomAnchor.constraint(equalTo: scrollView.contentView.bottomAnchor),
             innerStack.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor)
         ])
-
-        // scrollView의 heightAnchor 제약을 한 번만 추가
-        scrollHeightConstraint = scrollView.heightAnchor.constraint(equalToConstant: 160)
+        scrollHeightConstraint = scrollView.heightAnchor.constraint(equalToConstant: 180)
         scrollHeightConstraint?.isActive = true
+        stackView.addArrangedSubview(scrollView)
 
-        // addButton 설정
+        // --- 더보기 버튼 ---
+        moreButton.title = "더보기"
+        moreButton.target = self
+        moreButton.action = #selector(toggleMore)
+        moreButton.isBordered = false
+        moreButton.font = NSFont.systemFont(ofSize: 13, weight: .medium)
+        stackView.addArrangedSubview(moreButton)
+
+        // --- +버튼 ---
         addButton.title = "+"
         addButton.target = self
         addButton.action = #selector(addScheduleTapped)
         addButton.setContentHuggingPriority(.required, for: .horizontal)
         addButton.setContentHuggingPriority(.required, for: .vertical)
-        
-        // spacer 설정
-        spacer.setContentHuggingPriority(.defaultLow, for: .vertical)
-
-        // stackView에 scrollView, spacer, addButton만 고정 추가
-        stackView.addArrangedSubview(scrollView)
-        stackView.addArrangedSubview(spacer)
         stackView.addArrangedSubview(addButton)
 
+        // --- spacer ---
+        spacer.setContentHuggingPriority(.defaultLow, for: .vertical)
+        stackView.addArrangedSubview(spacer)
+
+        // --- 설정 버튼 ---
+        settingsButton.title = "설정"
+        settingsButton.target = self
+        settingsButton.action = #selector(settingsTapped)
+        settingsButton.font = NSFont.systemFont(ofSize: 13)
+        stackView.addArrangedSubview(settingsButton)
+
+        reloadSchedules()
+    }
+    
+    @objc func toggleMore() {
+        isExpanded.toggle()
         reloadSchedules()
     }
     
@@ -94,6 +159,12 @@ class PopoverViewController : NSViewController {
         editor.showWindow(nil)
     }
     
+    @objc func settingsTapped() {
+        // 설정 창 띄우기(임시)
+        let alert = NSAlert()
+        alert.messageText = "설정 기능은 준비 중입니다."
+        alert.runModal()
+    }
     
     private func addNoScheduleLabel(to view: NSView, contentHeight: Int) {
         let label = NSTextField(labelWithString: "등록된 일정이 없습니다.")
@@ -228,53 +299,71 @@ class PopoverViewController : NSViewController {
     }
     
     func reloadSchedules() {
-        // innerStack의 arrangedSubviews만 모두 제거
-        for subview in innerStack.arrangedSubviews {
-            innerStack.removeArrangedSubview(subview)
-            subview.removeFromSuperview()
-        }
-
-        let itemHeight = 40
-        let maxVisible = 4
-        let width: CGFloat = 270
-
-        schedules = ScheduleStorage.shared.load()
-
-        // If no schedules, show label
-        if schedules.isEmpty {
-            let label = NSTextField(labelWithString: "등록된 일정이 없습니다.")
-            label.font = NSFont.systemFont(ofSize: 16, weight: .medium)
-            label.textColor = NSColor.secondaryLabelColor
-            label.alignment = .center
-            label.translatesAutoresizingMaskIntoConstraints = false
-            innerStack.addArrangedSubview(label)
-            let contentHeight: CGFloat = 160
-            scrollHeightConstraint?.constant = contentHeight - 20
-            let totalHeight = contentHeight + 20 + 40 // scroll + spacer + addButton
-            baseView.setFrameSize(NSSize(width: width, height: totalHeight))
-            return
-        }
-
-        // Schedule views
+        // --- 대표 일정/현재 일정 카드 ---
         let now = Date()
         let calendar = Calendar.current
         let today = calendar.dateComponents([.year, .month, .day], from: now)
-        var scheduleViews: [NSView] = []
-        for (idx, schedule) in schedules.enumerated() {
+        schedules = ScheduleStorage.shared.load()
+        var cardSchedule: Schedule?
+        if let rep = schedules.first(where: { $0.isRepresentative }) {
+            cardSchedule = rep
+        } else {
+            // 현재 시간에 해당하는 일정
+            cardSchedule = schedules.first(where: { schedule in
+                var startComp = schedule.start
+                startComp.year = today.year; startComp.month = today.month; startComp.day = today.day
+                var endComp = schedule.end
+                endComp.year = today.year; endComp.month = today.month; endComp.day = today.day
+                guard let startDate = calendar.date(from: startComp), let endDate = calendar.date(from: endComp) else { return false }
+                return now >= startDate && now <= endDate
+            })
+        }
+        if let card = cardSchedule {
+            cardTitleLabel.stringValue = card.title
+            let start = calendar.date(from: { var c = card.start; c.year = today.year; c.month = today.month; c.day = today.day; return c }()) ?? now
+            let end = calendar.date(from: { var c = card.end; c.year = today.year; c.month = today.month; c.day = today.day; return c }()) ?? now
+            cardTimeLabel.stringValue = "\(formatTime(start)) ~ \(formatTime(end))"
+            let progress = clampedProgress(from: now, start: start, end: end)
+            cardProgressBar.doubleValue = progress
+        } else {
+            cardTitleLabel.stringValue = "대표 일정 없음"
+            cardTimeLabel.stringValue = ""
+            cardProgressBar.doubleValue = 0
+        }
+
+        // --- 일정 리스트 ---
+        for subview in innerStack.arrangedSubviews { innerStack.removeArrangedSubview(subview); subview.removeFromSuperview() }
+        let maxVisible = 4
+        let showCount = isExpanded ? schedules.count : min(schedules.count, maxVisible)
+        for (idx, schedule) in schedules.prefix(showCount).enumerated() {
+            let now = Date()
+            let calendar = Calendar.current
+            let today = calendar.dateComponents([.year, .month, .day], from: now)
             guard let (start, end) = resolvedDateRange(from: schedule, on: today, using: calendar) else { continue }
             let progress = clampedProgress(from: now, start: start, end: end)
             let percent = Int(progress * 100)
-            let views = makeScheduleStackItem(for: idx, schedule: schedule, percent: percent, progress: progress, start: start, end: end)
-            scheduleViews.append(views)
+            let item = makeScheduleStackItem(for: idx, schedule: schedule, percent: percent, progress: progress, start: start, end: end)
+            innerStack.addArrangedSubview(item)
         }
-        scheduleViews.forEach { innerStack.addArrangedSubview($0) }
-        let visibleCount = min(schedules.count, maxVisible)
-        let scrollHeight: CGFloat = CGFloat(visibleCount * itemHeight + (visibleCount-1)*10)
+        // 더보기 버튼 표시 여부
+        moreButton.isHidden = schedules.count <= maxVisible
+        moreButton.title = isExpanded ? "접기" : "더보기"
+        // popover 크기 조정
+        let itemHeight = 40
+        let visibleCount = showCount
+        // innerStack의 arrangedSubviews의 총 높이(간격 포함)로 scrollView 높이 계산
+        let subviewCount = innerStack.arrangedSubviews.count
+        let spacing = innerStack.spacing
+        let scrollHeight: CGFloat = CGFloat(subviewCount) * CGFloat(itemHeight) + CGFloat(max(0, subviewCount-1)) * spacing
         let minHeight: CGFloat = 160
         let scrollFinalHeight = max(minHeight - 20, scrollHeight)
-        scrollHeightConstraint?.constant = scrollFinalHeight
-        let totalHeight = scrollFinalHeight + 20 + 40 // scroll + spacer + addButton
-        baseView.setFrameSize(NSSize(width: width, height: totalHeight))
+        scrollHeightConstraint?.constant = scrollFinalHeight // 기존 제약의 constant만 변경
+        // 카드+여백+리스트+여백+add+여백+설정
+        let totalHeight = 90 + 10 + scrollFinalHeight + 10 + 40 + 10 + 30 + 10
+        baseView.setFrameSize(NSSize(width: 270, height: totalHeight))
+        baseView.layoutSubtreeIfNeeded()
+        // innerStack의 width를 scrollView.contentView에 강제 동기화
+        innerStack.frame.size.width = scrollView.contentView.bounds.width
     }
     
     override func viewDidLoad() {
@@ -303,6 +392,18 @@ class PopoverViewController : NSViewController {
         ScheduleStorage.shared.save(schedules)
 
         // UI 리로드
+        reloadSchedules()
+    }
+    
+    override func viewDidAppear() {
+        super.viewDidAppear()
+        if let popover = self.view.window?.windowController as? NSPopover {
+            popover.delegate = self
+        }
+        reloadSchedules()
+    }
+    
+    func popoverDidShow(_ notification: Notification) {
         reloadSchedules()
     }
     
