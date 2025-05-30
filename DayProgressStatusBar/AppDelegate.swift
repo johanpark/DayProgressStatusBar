@@ -94,7 +94,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         endComp.year = today.year; endComp.month = today.month; endComp.day = today.day
         guard let start = calendar.date(from: startComp),
               let end = calendar.date(from: endComp) else { return 0 }
-        let progress = now.timeIntervalSince(start) / end.timeIntervalSince(start)
+        let duration = end.timeIntervalSince(start)
+        if duration <= 0 { return 0 }
+        let progress = now.timeIntervalSince(start) / duration
         return max(0, min(100, Int(progress * 100)))
     }
     
