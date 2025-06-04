@@ -38,6 +38,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             name: .scheduleListUpdated,
             object: nil
         )
+        NotificationCenter.default.addObserver(self, selector: #selector(languageChanged), name: Notification.Name("AppLanguageChanged"), object: nil)
     }
     
     @objc func scheduleListDidUpdate() {
@@ -112,7 +113,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(NSMenuItem.separator())
         let schedules = ScheduleStorage.shared.load()
         if schedules.isEmpty {
-            let emptyItem = NSMenuItem(title: "등록된 일정이 없습니다.", action: nil, keyEquivalent: "")
+            let emptyItem = NSMenuItem(title: LocalizedManager.shared.localized("No schedules registered."), action: nil, keyEquivalent: "")
             menu.addItem(emptyItem)
         } else {
             for (idx, schedule) in schedules.enumerated() {
@@ -123,11 +124,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         // 4. Manage Schedule
         menu.addItem(NSMenuItem.separator())
-        let manageItem = NSMenuItem(title: "Manage Schedules", action: #selector(openScheduleManager), keyEquivalent: "")
+        let manageItem = NSMenuItem(title: LocalizedManager.shared.localized("Manage Schedules"), action: #selector(openScheduleManager), keyEquivalent: "")
         manageItem.target = self
         menu.addItem(manageItem)
-        // 5. Quit
-        let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        // 5. Settings
+        let settingsItem = NSMenuItem(title: LocalizedManager.shared.localized("Settings"), action: #selector(openSettings), keyEquivalent: "")
+        settingsItem.target = self
+        menu.addItem(settingsItem)
+        // 6. Quit
+        let quitItem = NSMenuItem(title: LocalizedManager.shared.localized("Quit"), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         quitItem.target = NSApp
         menu.addItem(quitItem)
         statusItem.menu = menu
@@ -164,7 +169,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         stack.alignment = .leading
         stack.translatesAutoresizingMaskIntoConstraints = false
         // Today
-        let todayLabel = NSTextField(labelWithString: String(format: "Today  %2d%%", Int(todayProgress * 100)))
+        let todayLabel = NSTextField(labelWithString: String(format: "%@  %2d%%", LocalizedManager.shared.localized("Today"), Int(todayProgress * 100)))
         todayLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         let todayBar = NSProgressIndicator()
         todayBar.minValue = 0; todayBar.maxValue = 1; todayBar.doubleValue = todayProgress
@@ -175,7 +180,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         todayBar.heightAnchor.constraint(equalToConstant: 8).isActive = true
         todayBar.widthAnchor.constraint(equalToConstant: 180).isActive = true
         // Month
-        let monthLabel = NSTextField(labelWithString: String(format: "Month  %2d%%", Int(monthProgress * 100)))
+        let monthLabel = NSTextField(labelWithString: String(format: "%@  %2d%%", LocalizedManager.shared.localized("Month"), Int(monthProgress * 100)))
         monthLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         let monthBar = NSProgressIndicator()
         monthBar.minValue = 0; monthBar.maxValue = 1; monthBar.doubleValue = monthProgress
@@ -186,7 +191,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         monthBar.heightAnchor.constraint(equalToConstant: 8).isActive = true
         monthBar.widthAnchor.constraint(equalToConstant: 180).isActive = true
         // Year
-        let yearLabel = NSTextField(labelWithString: String(format: "Year   %2d%%", Int(yearProgress * 100)))
+        let yearLabel = NSTextField(labelWithString: String(format: "%@   %2d%%", LocalizedManager.shared.localized("Year"), Int(yearProgress * 100)))
         yearLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         let yearBar = NSProgressIndicator()
         yearBar.minValue = 0; yearBar.maxValue = 1; yearBar.doubleValue = yearProgress
@@ -303,6 +308,28 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             scheduleManager = ScheduleManagerWindowController()
         }
         scheduleManager?.showWindow(nil)
+    }
+
+    @objc func openSettings() {
+        if settingsWindow == nil {
+            settingsWindow = SettingsWindowController()
+            settingsWindow?.onLanguageChanged = { [weak self] lang in
+                self?.applyLanguage(lang)
+            }
+        }
+        settingsWindow?.showWindow(nil)
+    }
+
+    var settingsWindow: SettingsWindowController?
+
+    func applyLanguage(_ lang: String) {
+        // 실제 언어 변경 로직은 여기서 처리 (UserDefaults 등 활용)
+        // 예시: UserDefaults.standard.set(lang, forKey: "AppLanguage")
+        // 그리고 NotificationCenter 등으로 전체 UI 갱신
+    }
+
+    @objc func languageChanged() {
+        showMenu(nil)
     }
 }
 

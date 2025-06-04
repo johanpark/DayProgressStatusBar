@@ -1,11 +1,11 @@
 import Cocoa
 
 class ScheduleManagerWindowController: NSWindowController {
-    let titleLabel = NSTextField(labelWithString: "일정 관리")
-    let closeButton = NSButton(title: "닫기", target: nil, action: nil)
+    let titleLabel = NSTextField(labelWithString: LocalizedManager.shared.localized("Manage Schedules"))
+    let closeButton = NSButton()
     let scrollView = NSScrollView()
     let stackView = NSStackView()
-    let addButton = NSButton(title: "+ 새 일정 추가", target: nil, action: nil)
+    let addButton = NSButton()
     var schedules: [Schedule] = []
     var addEditSheetController: ScheduleManagerAddEditSheetController?
 
@@ -16,9 +16,10 @@ class ScheduleManagerWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = "일정 관리"
+        window.title = LocalizedManager.shared.localized("Manage Schedules")
         window.level = .normal
         super.init(window: window)
+        NotificationCenter.default.addObserver(self, selector: #selector(languageChanged), name: Notification.Name("AppLanguageChanged"), object: nil)
         setupUI()
         reloadSchedules()
         window.makeKeyAndOrderFront(nil)
@@ -40,6 +41,7 @@ class ScheduleManagerWindowController: NSWindowController {
         titleLabel.frame = NSRect(x: 0, y: 480, width: 380, height: 32)
         contentView.addSubview(titleLabel)
         // 닫기 버튼
+        closeButton.title = LocalizedManager.shared.localized("Close")
         closeButton.frame = NSRect(x: 320, y: 485, width: 50, height: 24)
         closeButton.bezelStyle = .rounded
         closeButton.setButtonType(.momentaryPushIn)
@@ -60,6 +62,7 @@ class ScheduleManagerWindowController: NSWindowController {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = stackView
         // 추가 버튼
+        addButton.title = "+ " + LocalizedManager.shared.localized("Add Schedule")
         addButton.frame = NSRect(x: 110, y: 20, width: 160, height: 36)
         addButton.bezelStyle = .rounded
         addButton.setButtonType(.momentaryPushIn)
@@ -78,7 +81,7 @@ class ScheduleManagerWindowController: NSWindowController {
         print("불러온 일정 개수: \(schedules.count)")
         for sub in stackView.arrangedSubviews { stackView.removeArrangedSubview(sub); sub.removeFromSuperview() }
         if schedules.isEmpty {
-            let label = NSTextField(labelWithString: "등록된 일정이 없습니다.")
+            let label = NSTextField(labelWithString: LocalizedManager.shared.localized("No schedules registered."))
             label.font = NSFont.systemFont(ofSize: 15, weight: .medium)
             label.textColor = .secondaryLabelColor
             label.alignment = .center
@@ -136,6 +139,14 @@ class ScheduleManagerWindowController: NSWindowController {
             self.window?.close()
         }
     }
+    @objc func languageChanged() {
+        LocalizedManager.shared.updateBundle()
+        window?.title = LocalizedManager.shared.localized("Manage Schedules")
+        titleLabel.stringValue = LocalizedManager.shared.localized("Manage Schedules")
+        closeButton.title = LocalizedManager.shared.localized("Close")
+        addButton.title = "+ " + LocalizedManager.shared.localized("Add Schedule")
+        reloadSchedules()
+    }
 }
 
 // 일정 카드(행) 뷰
@@ -190,14 +201,14 @@ class ScheduleManagerCardView: NSView {
         colorWell.isEnabled = false
         addSubview(colorWell)
         // 수정 버튼
-        let editBtn = NSButton(title: "수정", target: target, action: #selector(target.editTapped(_:)))
+        let editBtn = NSButton(title: LocalizedManager.shared.localized("Edit"), target: target, action: #selector(target.editTapped(_:)))
         editBtn.bezelStyle = .rounded
         editBtn.font = NSFont.systemFont(ofSize: 13)
         editBtn.frame = NSRect(x: 210, y: 18, width: 50, height: 24)
         editBtn.tag = index
         addSubview(editBtn)
         // 삭제 버튼
-        let delBtn = NSButton(title: "삭제", target: target, action: #selector(target.deleteTapped(_:)))
+        let delBtn = NSButton(title: LocalizedManager.shared.localized("Delete"), target: target, action: #selector(target.deleteTapped(_:)))
         delBtn.bezelStyle = .rounded
         delBtn.font = NSFont.systemFont(ofSize: 13)
         delBtn.frame = NSRect(x: 265, y: 18, width: 50, height: 24)
