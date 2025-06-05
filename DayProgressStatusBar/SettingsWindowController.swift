@@ -36,6 +36,12 @@ class SettingsWindowController: NSWindowController {
         languagePopup.removeAllItems()
         for lang in languages { languagePopup.addItem(withTitle: lang.1) }
         content.addSubview(languagePopup)
+        
+        let currentLangCode = UserDefaults.standard.string(forKey: "AppLanguage") ?? "ko"
+        if let index = languages.firstIndex(where: { $0.0 == currentLangCode }) {
+            languagePopup.selectItem(at: index)
+        }
+        
         saveButton.frame = NSRect(x: 100, y: 30, width: 90, height: 32)
         saveButton.bezelStyle = .rounded
         saveButton.target = self
@@ -68,4 +74,4 @@ class SettingsWindowController: NSWindowController {
         saveButton.title = LocalizedManager.shared.localized("Save")
         closeButton.title = LocalizedManager.shared.localized("Close")
     }
-} 
+}
