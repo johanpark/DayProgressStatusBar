@@ -12,4 +12,9 @@
 "Language" = "Language";
 "Today" = "Today";
 "Month" = "Month";
-"Year" = "Year"; 
+"Year" = "Year";
+"Show schedule title in status bar" = "Show schedule title in status bar";
+"Progress Icon" = "Progress Icon";
+"None" = "None";
+"Battery" = "Battery";
+"Circle" = "Circle"; 

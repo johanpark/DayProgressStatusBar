@@ -13,4 +13,9 @@
 "Today" = "今天";
 "Month" = "月";
 "Year" = "年";
-"No representative schedule" = "无代表日程"; 
+"No representative schedule" = "无代表日程";
+"Show schedule title in status bar" = "在状态栏显示日程名称";
+"Progress Icon" = "进度图标";
+"None" = "无";
+"Battery" = "电池";
+"Circle" = "圆形"; 

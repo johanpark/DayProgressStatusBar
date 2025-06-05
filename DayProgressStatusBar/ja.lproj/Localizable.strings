@@ -13,4 +13,9 @@
 "Today" = "今日";
 "Month" = "月";
 "Year" = "年";
-"No representative schedule" = "代表スケジュールなし"; 
+"No representative schedule" = "代表スケジュールなし";
+"Show schedule title in status bar" = "ステータスバーにスケジュール名を表示";
+"Progress Icon" = "進捗アイコン";
+"None" = "なし";
+"Battery" = "バッテリー";
+"Circle" = "円"; 

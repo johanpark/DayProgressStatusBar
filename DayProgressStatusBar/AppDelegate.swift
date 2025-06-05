@@ -39,6 +39,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
         NotificationCenter.default.addObserver(self, selector: #selector(languageChanged), name: Notification.Name("AppLanguageChanged"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(showScheduleTitleChanged), name: Notification.Name("ShowScheduleTitleChanged"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(statusBarIconStyleChanged), name: Notification.Name("StatusBarIconStyleChanged"), object: nil)
     }
     
     @objc func scheduleListDidUpdate() {
@@ -50,6 +52,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let calendar = Calendar.current
         let today = calendar.dateComponents([.year, .month, .day], from: now)
         let allSchedules = schedules
+        let showTitle = UserDefaults.standard.bool(forKey: "ShowScheduleTitle")
+        let iconStyle = UserDefaults.standard.string(forKey: "StatusBarIconStyle") ?? "none"
+        var percent: Int = 0
+        var titleText: String = ""
         // 대표 일정 우선
         if let rep = allSchedules.first(where: { $0.isRepresentative }) {
             var startComp = rep.start
@@ -58,43 +64,48 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             endComp.year = today.year; endComp.month = today.month; endComp.day = today.day
             let start = calendar.date(from: startComp) ?? now
             let end = calendar.date(from: endComp) ?? now
-            let percent = max(0, min(100, Int((now.timeIntervalSince(start) / max(1, end.timeIntervalSince(start))) * 100)))
-            DispatchQueue.main.async {
-                self.statusItem.button?.title = "\(rep.title) \(percent)%"
+            percent = max(0, min(100, Int((now.timeIntervalSince(start) / max(1, end.timeIntervalSince(start))) * 100)))
+            titleText = showTitle ? "\(rep.title) \(percent)%" : "\(percent)%"
+        } else {
+            // 현재 시간 겹치는 일정 중 가장 빠른 것
+            let candidates = allSchedules.compactMap { schedule -> (Schedule, Date)? in
+                var startComp = schedule.start
+                startComp.year = today.year; startComp.month = today.month; startComp.day = today.day
+                guard let startDate = calendar.date(from: startComp) else { return nil }
+                var endComp = schedule.end
+                endComp.year = today.year; endComp.month = today.month; endComp.day = today.day
+                guard let endDate = calendar.date(from: endComp) else { return nil }
+                return (now >= startDate && now <= endDate) ? (schedule, startDate) : nil
             }
-            return
-        }
-        // 현재 시간 겹치는 일정 중 가장 빠른 것
-        let candidates = allSchedules.compactMap { schedule -> (Schedule, Date)? in
-            var startComp = schedule.start
-            startComp.year = today.year; startComp.month = today.month; startComp.day = today.day
-            guard let startDate = calendar.date(from: startComp) else { return nil }
-            var endComp = schedule.end
-            endComp.year = today.year; endComp.month = today.month; endComp.day = today.day
-            guard let endDate = calendar.date(from: endComp) else { return nil }
-            return (now >= startDate && now <= endDate) ? (schedule, startDate) : nil
-        }
-        if let selected = candidates.sorted(by: { $0.1 < $1.1 }).first {
-            let schedule = selected.0
-            var startComp = schedule.start
-            var endComp = schedule.end
-            startComp.year = today.year; startComp.month = today.month; startComp.day = today.day
-            endComp.year = today.year; endComp.month = today.month; endComp.day = today.day
-            let start = calendar.date(from: startComp) ?? now
-            let end = calendar.date(from: endComp) ?? now
-            let percent = max(0, min(100, Int((now.timeIntervalSince(start) / max(1, end.timeIntervalSince(start))) * 100)))
-            DispatchQueue.main.async {
-                self.statusItem.button?.title = "\(schedule.title) \(percent)%"
+            if let selected = candidates.sorted(by: { $0.1 < $1.1 }).first {
+                let schedule = selected.0
+                var startComp = schedule.start
+                var endComp = schedule.end
+                startComp.year = today.year; startComp.month = today.month; startComp.day = today.day
+                endComp.year = today.year; endComp.month = today.month; endComp.day = today.day
+                let start = calendar.date(from: startComp) ?? now
+                let end = calendar.date(from: endComp) ?? now
+                percent = max(0, min(100, Int((now.timeIntervalSince(start) / max(1, end.timeIntervalSince(start))) * 100)))
+                titleText = showTitle ? "\(schedule.title) \(percent)%" : "\(percent)%"
+            } else {
+                // 일정 없거나 해당 없음: 오늘의 %
+                let startDay = calendar.startOfDay(for: now)
+                let endDay = calendar.date(byAdding: .day, value: 1, to: startDay)!
+                let todayProgress = now.timeIntervalSince(startDay) / endDay.timeIntervalSince(startDay)
+                percent = Int(todayProgress * 100)
+                titleText = showTitle ? "Day - \(percent)%" : "\(percent)%"
             }
-            return
         }
-        // 일정 없거나 해당 없음: 오늘의 %
-        let startDay = calendar.startOfDay(for: now)
-        let endDay = calendar.date(byAdding: .day, value: 1, to: startDay)!
-        let todayProgress = now.timeIntervalSince(startDay) / endDay.timeIntervalSince(startDay)
-        let percent = Int(todayProgress * 100)
         DispatchQueue.main.async {
-            self.statusItem.button?.title = "Day - \(percent)%"
+            self.statusItem.button?.title = titleText
+            switch iconStyle {
+            case "battery":
+                self.statusItem.button?.image = self.drawBatteryIcon(percent: percent)
+            case "circle":
+                self.statusItem.button?.image = self.drawCircleIcon(percent: percent)
+            default:
+                self.statusItem.button?.image = nil
+            }
         }
     }
     
@@ -330,6 +341,66 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc func languageChanged() {
         showMenu(nil)
+    }
+
+    @objc func showScheduleTitleChanged() {
+        updateStatusBarPercent()
+    }
+
+    @objc func statusBarIconStyleChanged() {
+        updateStatusBarPercent()
+    }
+
+    // 진행률 배터리 아이콘 그리기
+    func drawBatteryIcon(percent: Int) -> NSImage? {
+        let size = NSSize(width: 22, height: 12)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        let rect = NSRect(x: 1, y: 2, width: 18, height: 8)
+        let path = NSBezierPath(roundedRect: rect, xRadius: 2, yRadius: 2)
+        NSColor.gray.setStroke()
+        path.lineWidth = 1.2
+        path.stroke()
+        // 배터리 머리
+        let head = NSRect(x: 19, y: 4, width: 2, height: 4)
+        let headPath = NSBezierPath(roundedRect: head, xRadius: 1, yRadius: 1)
+        NSColor.gray.setFill()
+        headPath.fill()
+        // 채워진 부분
+        let fillWidth = CGFloat(percent) * 16 / 100
+        let fillRect = NSRect(x: 2, y: 3, width: fillWidth, height: 6)
+        let fillColor = percent < 20 ? NSColor.systemRed : NSColor.systemGreen
+        fillColor.setFill()
+        NSBezierPath(roundedRect: fillRect, xRadius: 1, yRadius: 1).fill()
+        image.unlockFocus()
+        image.isTemplate = true
+        return image
+    }
+    // 진행률 원 아이콘 그리기
+    func drawCircleIcon(percent: Int) -> NSImage? {
+        let size = NSSize(width: 14, height: 14)
+        let image = NSImage(size: size)
+        image.lockFocus()
+        let center = CGPoint(x: 7, y: 7)
+        let radius: CGFloat = 6
+        let startAngle: CGFloat = 90
+        let endAngle: CGFloat = 90 - 360 * CGFloat(percent) / 100
+        // 배경 원
+        let bgPath = NSBezierPath()
+        bgPath.appendArc(withCenter: center, radius: radius, startAngle: 0, endAngle: 360)
+        NSColor.gray.withAlphaComponent(0.3).setStroke()
+        bgPath.lineWidth = 2
+        bgPath.stroke()
+        // 진행률 원
+        let fgPath = NSBezierPath()
+        fgPath.appendArc(withCenter: center, radius: radius, startAngle: startAngle, endAngle: endAngle, clockwise: true)
+        let fillColor = percent < 20 ? NSColor.systemRed : NSColor.systemBlue
+        fillColor.setStroke()
+        fgPath.lineWidth = 2.5
+        fgPath.stroke()
+        image.unlockFocus()
+        image.isTemplate = true
+        return image
     }
 }
 

@@ -13,4 +13,9 @@
 "Today" = "Heute";
 "Month" = "Monat";
 "Year" = "Jahr";
-"No representative schedule" = "Keine Haupt-Termine"; 
+"No representative schedule" = "Keine Haupt-Termine";
+"Show schedule title in status bar" = "Terminname in der Statusleiste anzeigen";
+"Progress Icon" = "Fortschrittsicon";
+"None" = "Keins";
+"Battery" = "Batterie";
+"Circle" = "Kreis"; 
