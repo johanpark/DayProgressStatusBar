@@ -1,7 +1,6 @@
 import Cocoa
 
 class ScheduleManagerWindowController: NSWindowController {
-    let titleLabel = NSTextField(labelWithString: LocalizedManager.shared.localized("Manage Schedules"))
     let closeButton = NSButton()
     let scrollView = NSScrollView()
     let stackView = NSStackView()
@@ -35,11 +34,6 @@ class ScheduleManagerWindowController: NSWindowController {
 
     func setupUI() {
         guard let contentView = window?.contentView else { return }
-        // 타이틀
-        titleLabel.font = NSFont.systemFont(ofSize: 20, weight: .bold)
-        titleLabel.alignment = .center
-        titleLabel.frame = NSRect(x: 0, y: 480, width: 380, height: 32)
-        contentView.addSubview(titleLabel)
         // 닫기 버튼
         closeButton.title = LocalizedManager.shared.localized("Close")
         closeButton.frame = NSRect(x: 320, y: 485, width: 50, height: 24)
@@ -50,7 +44,7 @@ class ScheduleManagerWindowController: NSWindowController {
         closeButton.action = #selector(closeWindow)
         contentView.addSubview(closeButton)
         // 리스트 스크롤뷰
-        scrollView.frame = NSRect(x: 20, y: 70, width: 340, height: 390)
+        scrollView.frame = NSRect(x: 12, y: 70, width: 356, height: 390)
         scrollView.hasVerticalScroller = true
         scrollView.borderType = .noBorder
         scrollView.drawsBackground = false
@@ -62,23 +56,20 @@ class ScheduleManagerWindowController: NSWindowController {
         stackView.translatesAutoresizingMaskIntoConstraints = false
         scrollView.documentView = stackView
         // 추가 버튼
-        addButton.title = "+ " + LocalizedManager.shared.localized("Add Schedule")
-        addButton.frame = NSRect(x: 110, y: 20, width: 160, height: 36)
-        addButton.bezelStyle = .rounded
+        addButton.title = ""
+        addButton.image = NSImage(systemSymbolName: "plus.circle.fill", accessibilityDescription: nil)
+        addButton.bezelStyle = .inline
         addButton.setButtonType(.momentaryPushIn)
         addButton.isBordered = true
         addButton.font = NSFont.systemFont(ofSize: 15, weight: .medium)
         addButton.target = self
         addButton.action = #selector(addTapped)
+        addButton.frame = NSRect(x: 160, y: 20, width: 36, height: 36)
         contentView.addSubview(addButton)
-        // 디버깅용 프린트
-        print("closeButton: superview=\(closeButton.superview != nil), window=\(closeButton.window != nil), nextResponder=\(closeButton.nextResponder)")
-        print("addButton: superview=\(addButton.superview != nil), window=\(addButton.window != nil), nextResponder=\(addButton.nextResponder)")
     }
 
     func reloadSchedules() {
         schedules = ScheduleStorage.shared.load()
-        print("불러온 일정 개수: \(schedules.count)")
         for sub in stackView.arrangedSubviews { stackView.removeArrangedSubview(sub); sub.removeFromSuperview() }
         if schedules.isEmpty {
             let label = NSTextField(labelWithString: LocalizedManager.shared.localized("No schedules registered."))
@@ -92,12 +83,11 @@ class ScheduleManagerWindowController: NSWindowController {
             return
         }
         for (idx, schedule) in schedules.enumerated() {
-            print("일정 \(idx): \(schedule.title)")
             let card = ScheduleManagerCardView(schedule: schedule, index: idx, target: self)
-            card.frame = NSRect(x: 0, y: 0, width: 320, height: 56)
+            card.frame = NSRect(x: 0, y: 0, width: 320, height: 52)
             stackView.addArrangedSubview(card)
         }
-        let height = CGFloat(schedules.count) * 60
+        let height = CGFloat(schedules.count) * 52 + 10 // Add spacing for top/bottom
         stackView.frame = NSRect(x: 0, y: 0, width: scrollView.contentSize.width, height: max(390, height))
         stackView.distribution = .fill
     }
@@ -142,20 +132,36 @@ class ScheduleManagerWindowController: NSWindowController {
     @objc func languageChanged() {
         LocalizedManager.shared.updateBundle()
         window?.title = LocalizedManager.shared.localized("Manage Schedules")
-        titleLabel.stringValue = LocalizedManager.shared.localized("Manage Schedules")
         closeButton.title = LocalizedManager.shared.localized("Close")
-        addButton.title = "+ " + LocalizedManager.shared.localized("Add Schedule")
+        addButton.image = NSImage(systemSymbolName: "plus.circle.fill", accessibilityDescription: nil)
         reloadSchedules()
     }
 }
 
 // 일정 카드(행) 뷰
 class ScheduleManagerCardView: NSView {
+    let visualEffectView: NSVisualEffectView
     init(schedule: Schedule, index: Int, target: ScheduleManagerWindowController) {
-        super.init(frame: NSRect(x: 0, y: 0, width: 320, height: 56))
+        visualEffectView = NSVisualEffectView()
+        super.init(frame: NSRect(x: 0, y: 0, width: 320, height: 52))
         wantsLayer = true
-        layer?.backgroundColor = NSColor.windowBackgroundColor.withAlphaComponent(0.9).cgColor
-        layer?.cornerRadius = 10
+        layer?.cornerRadius = 12
+        layer?.shadowColor = NSColor.black.cgColor
+        layer?.shadowOpacity = 0.2
+        layer?.shadowOffset = CGSize(width: 0, height: -1)
+        layer?.shadowRadius = 4
+        
+        visualEffectView.frame = bounds
+        visualEffectView.autoresizingMask = [.width, .height]
+        visualEffectView.blendingMode = .behindWindow
+        visualEffectView.material = .contentBackground
+        visualEffectView.state = .active
+        visualEffectView.wantsLayer = true
+        visualEffectView.layer?.cornerRadius = 12
+        visualEffectView.layer?.cornerCurve = .continuous
+        visualEffectView.layer?.masksToBounds = true
+        addSubview(visualEffectView, positioned: .below, relativeTo: nil)
+        
         // 대표
         let repBtn = NSButton()
         repBtn.bezelStyle = .inline
@@ -170,12 +176,12 @@ class ScheduleManagerCardView: NSView {
         addSubview(repBtn)
         // 일정명
         let title = NSTextField(labelWithString: schedule.title)
-        title.font = NSFont.systemFont(ofSize: 15, weight: .semibold)
+        title.font = NSFont.systemFont(ofSize: 16, weight: .medium)
         title.textColor = .labelColor
         title.backgroundColor = .clear
         title.isBordered = false
         title.alignment = .left
-        title.frame = NSRect(x: 40, y: 28, width: 120, height: 20)
+        title.frame = NSRect(x: 40, y: 26, width: 180, height: 20)
         addSubview(title)
         // 시간
         let calendar = Calendar.current
@@ -188,36 +194,45 @@ class ScheduleManagerCardView: NSView {
         let start = calendar.date(from: startComp) ?? now
         let end = calendar.date(from: endComp) ?? now
         let time = NSTextField(labelWithString: String(format: "%@ ~ %@", AppDelegate.formatTimeStatic(start), AppDelegate.formatTimeStatic(end)))
-        time.font = NSFont.systemFont(ofSize: 12, weight: .regular)
+        time.font = NSFont.systemFont(ofSize: 13, weight: .light)
         time.textColor = .secondaryLabelColor
         time.backgroundColor = .clear
         time.isBordered = false
         time.alignment = .left
-        time.frame = NSRect(x: 40, y: 10, width: 120, height: 16)
+        time.frame = NSRect(x: 40, y: 8, width: 180, height: 16)
         addSubview(time)
         // 색상
         let colorWell = NSColorWell(frame: NSRect(x: 170, y: 18, width: 28, height: 20))
         colorWell.color = NSColor(hex: schedule.colorHex) ?? .systemBlue
         colorWell.isEnabled = false
+        colorWell.wantsLayer = true
+        colorWell.layer?.cornerRadius = 4
+        colorWell.layer?.masksToBounds = true
         addSubview(colorWell)
         // 수정 버튼
-        let editBtn = NSButton(title: LocalizedManager.shared.localized("Edit"), target: target, action: #selector(target.editTapped(_:)))
-        editBtn.bezelStyle = .rounded
-        editBtn.font = NSFont.systemFont(ofSize: 13)
-        editBtn.frame = NSRect(x: 210, y: 18, width: 50, height: 24)
+        let editBtn = NSButton()
+        editBtn.bezelStyle = .inline
+        editBtn.image = NSImage(systemSymbolName: "pencil", accessibilityDescription: LocalizedManager.shared.localized("Edit"))
+        editBtn.imagePosition = .imageOnly
+        editBtn.frame = NSRect(x: 240, y: 14, width: 24, height: 24)
+        editBtn.target = target
+        editBtn.action = #selector(target.editTapped(_:))
         editBtn.tag = index
         addSubview(editBtn)
         // 삭제 버튼
-        let delBtn = NSButton(title: LocalizedManager.shared.localized("Delete"), target: target, action: #selector(target.deleteTapped(_:)))
-        delBtn.bezelStyle = .rounded
-        delBtn.font = NSFont.systemFont(ofSize: 13)
-        delBtn.frame = NSRect(x: 265, y: 18, width: 50, height: 24)
+        let delBtn = NSButton()
+        delBtn.bezelStyle = .inline
+        delBtn.image = NSImage(systemSymbolName: "trash", accessibilityDescription: LocalizedManager.shared.localized("Delete"))
+        delBtn.imagePosition = .imageOnly
+        delBtn.frame = NSRect(x: 270, y: 14, width: 24, height: 24)
+        delBtn.target = target
+        delBtn.action = #selector(target.deleteTapped(_:))
         delBtn.tag = index
         addSubview(delBtn)
     }
     required init?(coder: NSCoder) { fatalError() }
     override var intrinsicContentSize: CGSize {
-        return CGSize(width: 320, height: 56)
+        return CGSize(width: 320, height: 52)
     }
 }
 
@@ -259,6 +274,10 @@ class ScheduleManagerAddEditSheetController: NSWindowController {
         endPicker.datePickerStyle = .textFieldAndStepper
         startPicker.datePickerMode = .single
         endPicker.datePickerMode = .single
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+        startPicker.formatter = formatter
+        endPicker.formatter = formatter
         saveButton.title = "저장"
         saveButton.frame = NSRect(x: 170, y: 20, width: 50, height: 30)
         saveButton.target = self
@@ -308,4 +327,4 @@ class ScheduleManagerAddEditSheetController: NSWindowController {
             self.window?.close()
         }
     }
-} 
+}

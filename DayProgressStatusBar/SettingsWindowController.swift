@@ -15,35 +15,36 @@ class SettingsWindowController: NSWindowController {
     ]
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 320, height: 140),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 140),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
         window.title = LocalizedManager.shared.localized("Settings")
         super.init(window: window)
+        NotificationCenter.default.addObserver(self, selector: #selector(languageChanged), name: Notification.Name("AppLanguageChanged"), object: nil)
         setupUI()
+        updateLocalizedTexts()
     }
     required init?(coder: NSCoder) { fatalError() }
     func setupUI() {
         guard let content = window?.contentView else { return }
-        languageLabel.frame = NSRect(x: 30, y: 80, width: 80, height: 24)
+        languageLabel.frame = NSRect(x: 30, y: 80, width: 120, height: 24)
         languageLabel.font = NSFont.systemFont(ofSize: 14, weight: .medium)
         content.addSubview(languageLabel)
-        languagePopup.frame = NSRect(x: 120, y: 80, width: 150, height: 26)
+        languagePopup.frame = NSRect(x: 150, y: 80, width: 200, height: 26)
+        languagePopup.removeAllItems()
         for lang in languages { languagePopup.addItem(withTitle: lang.1) }
         content.addSubview(languagePopup)
-        saveButton.frame = NSRect(x: 80, y: 30, width: 80, height: 32)
+        saveButton.frame = NSRect(x: 100, y: 30, width: 90, height: 32)
         saveButton.bezelStyle = .rounded
         saveButton.target = self
         saveButton.action = #selector(saveTapped)
-        saveButton.sizeToFit()
         content.addSubview(saveButton)
-        closeButton.frame = NSRect(x: 180, y: 30, width: 80, height: 32)
+        closeButton.frame = NSRect(x: 210, y: 30, width: 90, height: 32)
         closeButton.bezelStyle = .rounded
         closeButton.target = self
         closeButton.action = #selector(closeTapped)
-        closeButton.sizeToFit()
         content.addSubview(closeButton)
     }
     @objc func saveTapped() {
@@ -57,5 +58,14 @@ class SettingsWindowController: NSWindowController {
     }
     @objc func closeTapped() {
         self.window?.close()
+    }
+    @objc func languageChanged() {
+        updateLocalizedTexts()
+    }
+    func updateLocalizedTexts() {
+        window?.title = LocalizedManager.shared.localized("Settings")
+        languageLabel.stringValue = LocalizedManager.shared.localized("Language")
+        saveButton.title = LocalizedManager.shared.localized("Save")
+        closeButton.title = LocalizedManager.shared.localized("Close")
     }
 } 

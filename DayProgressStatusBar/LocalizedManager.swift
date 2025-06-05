@@ -21,4 +21,9 @@ class LocalizedManager {
     func localized(_ key: String) -> String {
         return bundle.localizedString(forKey: key, value: nil, table: nil)
     }
+
+    var languageCode: String {
+        let lang = UserDefaults.standard.string(forKey: "AppLanguage") ?? Locale.preferredLanguages.first ?? "en"
+        return String(lang.prefix(2))
+    }
 } 

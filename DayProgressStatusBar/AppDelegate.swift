@@ -218,7 +218,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func makeRepresentativeScheduleView() -> NSView {
         let schedules = ScheduleStorage.shared.load()
         guard let rep = schedules.first(where: { $0.isRepresentative }) else {
-            let label = NSTextField(labelWithString: "대표 일정 없음")
+            let label = NSTextField(labelWithString: LocalizedManager.shared.localized("No representative schedule"))
             label.font = NSFont.systemFont(ofSize: 13, weight: .medium)
             label.textColor = .secondaryLabelColor
             label.backgroundColor = .clear
@@ -349,7 +349,6 @@ class ScheduleMenuItemView: NSView {
         percentLabel = NSTextField(labelWithString: "\(percent)%")
         bar = NSProgressIndicator()
         super.init(frame: NSRect(x: 0, y: 0, width: 220, height: 38))
-        print("ScheduleMenuItemView 생성: \(schedule.title), isRep=\(isRep)")
         wantsLayer = true
         layer?.cornerRadius = 6
         // Hover Layer
