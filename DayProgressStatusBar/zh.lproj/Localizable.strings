@@ -18,4 +18,9 @@
 "Progress Icon" = "进度图标";
 "None" = "无";
 "Battery" = "电池";
-"Circle" = "圆形"; 
+"Circle" = "圆形";
+"Show time left instead of percent" = "以剩余时间代替百分比显示";
+"hour left" = "小时剩余";
+"hours left" = "小时剩余";
+"minute left" = "分钟剩余";
+"minutes left" = "分钟剩余"; 

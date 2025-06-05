@@ -4,6 +4,7 @@ class SettingsWindowController: NSWindowController {
     let languageLabel = NSTextField(labelWithString: LocalizedManager.shared.localized("Language"))
     let languagePopup = NSPopUpButton()
     let showTitleCheckbox = NSButton(checkboxWithTitle: LocalizedManager.shared.localized("Show schedule title in status bar"), target: nil, action: nil)
+    let showTimeLeftCheckbox = NSButton(checkboxWithTitle: LocalizedManager.shared.localized("Show time left instead of percent"), target: nil, action: nil)
     let saveButton = NSButton(title: LocalizedManager.shared.localized("Save"), target: nil, action: nil)
     let closeButton = NSButton(title: LocalizedManager.shared.localized("Close"), target: nil, action: nil)
     var onLanguageChanged: ((String) -> Void)?
@@ -15,15 +16,15 @@ class SettingsWindowController: NSWindowController {
         ("de", "Deutsch")
     ]
     let iconStyleLabel = NSTextField(labelWithString: LocalizedManager.shared.localized("Progress Icon"))
-    let iconStyleRadio = NSMatrix(frame: NSRect.zero, mode: .radioModeMatrix, prototype: NSButtonCell(), numberOfRows: 1, numberOfColumns: 3)
+    let iconStylePopup = NSPopUpButton()
     let iconStyleOptions = [
-        ("none", LocalizedManager.shared.localized("None")),
-        ("battery", LocalizedManager.shared.localized("Battery")),
-        ("circle", LocalizedManager.shared.localized("Circle"))
+        ("none", "None"),
+        ("battery", "Battery"),
+        ("circle", "Circle")
     ]
     init() {
         let window = NSWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 380, height: 180),
+            contentRect: NSRect(x: 0, y: 0, width: 380, height: 240),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -37,35 +38,36 @@ class SettingsWindowController: NSWindowController {
     required init?(coder: NSCoder) { fatalError() }
     func setupUI() {
         guard let content = window?.contentView else { return }
-        languageLabel.frame = NSRect(x: 30, y: 140, width: 120, height: 24)
+        languageLabel.frame = NSRect(x: 30, y: 200, width: 120, height: 24)
         languageLabel.font = NSFont.systemFont(ofSize: 14, weight: .medium)
         content.addSubview(languageLabel)
-        languagePopup.frame = NSRect(x: 150, y: 140, width: 200, height: 26)
+        languagePopup.frame = NSRect(x: 150, y: 200, width: 200, height: 26)
         languagePopup.removeAllItems()
         for lang in languages { languagePopup.addItem(withTitle: lang.1) }
         content.addSubview(languagePopup)
         
-        iconStyleLabel.frame = NSRect(x: 30, y: 110, width: 120, height: 22)
+        iconStyleLabel.frame = NSRect(x: 30, y: 160, width: 120, height: 24)
         iconStyleLabel.font = NSFont.systemFont(ofSize: 14, weight: .medium)
         content.addSubview(iconStyleLabel)
         
-        iconStyleRadio.frame = NSRect(x: 150, y: 110, width: 200, height: 22)
-        iconStyleRadio.cellClass = NSButtonCell.self
-        iconStyleRadio.mode = .radioModeMatrix
-        for (i, opt) in iconStyleOptions.enumerated() {
-            let cell = NSButtonCell(textCell: opt.1)
-            cell.setButtonType(.radio)
-            iconStyleRadio.putCell(cell, atRow: 0, column: i)
+        iconStylePopup.frame = NSRect(x: 150, y: 160, width: 200, height: 26)
+        iconStylePopup.removeAllItems()
+        for opt in iconStyleOptions {
+            iconStylePopup.addItem(withTitle: LocalizedManager.shared.localized(opt.1))
         }
         let currentIconStyle = UserDefaults.standard.string(forKey: "StatusBarIconStyle") ?? "none"
         if let idx = iconStyleOptions.firstIndex(where: { $0.0 == currentIconStyle }) {
-            iconStyleRadio.selectCell(atRow: 0, column: idx)
+            iconStylePopup.selectItem(at: idx)
         }
-        content.addSubview(iconStyleRadio)
+        content.addSubview(iconStylePopup)
         
-        showTitleCheckbox.frame = NSRect(x: 30, y: 80, width: 320, height: 22)
+        showTitleCheckbox.frame = NSRect(x: 30, y: 120, width: 320, height: 22)
         showTitleCheckbox.state = UserDefaults.standard.bool(forKey: "ShowScheduleTitle") ? .on : .off
         content.addSubview(showTitleCheckbox)
+        
+        showTimeLeftCheckbox.frame = NSRect(x: 30, y: 90, width: 320, height: 22)
+        showTimeLeftCheckbox.state = UserDefaults.standard.bool(forKey: "ShowTimeLeftInsteadOfPercent") ? .on : .off
+        content.addSubview(showTimeLeftCheckbox)
         
         let currentLangCode = UserDefaults.standard.string(forKey: "AppLanguage") ?? "ko"
         if let index = languages.firstIndex(where: { $0.0 == currentLangCode }) {
@@ -89,13 +91,16 @@ class SettingsWindowController: NSWindowController {
         UserDefaults.standard.set(langCode, forKey: "AppLanguage")
         let showTitle = (showTitleCheckbox.state == .on)
         UserDefaults.standard.set(showTitle, forKey: "ShowScheduleTitle")
-        let iconStyleIdx = iconStyleRadio.selectedColumn
+        let iconStyleIdx = iconStylePopup.indexOfSelectedItem
         let iconStyle = iconStyleOptions[iconStyleIdx].0
         UserDefaults.standard.set(iconStyle, forKey: "StatusBarIconStyle")
+        let showTimeLeft = (showTimeLeftCheckbox.state == .on)
+        UserDefaults.standard.set(showTimeLeft, forKey: "ShowTimeLeftInsteadOfPercent")
         LocalizedManager.shared.updateBundle()
         NotificationCenter.default.post(name: Notification.Name("AppLanguageChanged"), object: langCode)
         NotificationCenter.default.post(name: Notification.Name("ShowScheduleTitleChanged"), object: showTitle)
         NotificationCenter.default.post(name: Notification.Name("StatusBarIconStyleChanged"), object: iconStyle)
+        NotificationCenter.default.post(name: Notification.Name("ShowTimeLeftInsteadOfPercentChanged"), object: showTimeLeft)
         onLanguageChanged?(langCode)
         self.window?.close()
     }
@@ -110,9 +115,15 @@ class SettingsWindowController: NSWindowController {
         languageLabel.stringValue = LocalizedManager.shared.localized("Language")
         showTitleCheckbox.title = LocalizedManager.shared.localized("Show schedule title in status bar")
         iconStyleLabel.stringValue = LocalizedManager.shared.localized("Progress Icon")
-        for (i, opt) in iconStyleOptions.enumerated() {
-            iconStyleRadio.cell(atRow: 0, column: i)?.title = opt.1
+        iconStylePopup.removeAllItems()
+        for opt in iconStyleOptions {
+            iconStylePopup.addItem(withTitle: LocalizedManager.shared.localized(opt.1))
         }
+        let currentIconStyle = UserDefaults.standard.string(forKey: "StatusBarIconStyle") ?? "none"
+        if let idx = iconStyleOptions.firstIndex(where: { $0.0 == currentIconStyle }) {
+            iconStylePopup.selectItem(at: idx)
+        }
+        showTimeLeftCheckbox.title = LocalizedManager.shared.localized("Show time left instead of percent")
         saveButton.title = LocalizedManager.shared.localized("Save")
         closeButton.title = LocalizedManager.shared.localized("Close")
     }

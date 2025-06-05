@@ -18,4 +18,9 @@
 "Progress Icon" = "進捗アイコン";
 "None" = "なし";
 "Battery" = "バッテリー";
-"Circle" = "円"; 
+"Circle" = "円";
+"Show time left instead of percent" = "パーセントの代わりに残り時間を表示";
+"hour left" = "時間残り";
+"hours left" = "時間残り";
+"minute left" = "分残り";
+"minutes left" = "分残り"; 

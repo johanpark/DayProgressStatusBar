@@ -18,4 +18,9 @@
 "Progress Icon" = "진행률 아이콘";
 "None" = "없음";
 "Battery" = "배터리";
-"Circle" = "원"; 
+"Circle" = "원";
+"Show time left instead of percent" = "진행률 대신 남은 시간 표시";
+"hour left" = "시간 남음";
+"hours left" = "시간 남음";
+"minute left" = "분 남음";
+"minutes left" = "분 남음"; 

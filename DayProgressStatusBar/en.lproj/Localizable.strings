@@ -17,4 +17,9 @@
 "Progress Icon" = "Progress Icon";
 "None" = "None";
 "Battery" = "Battery";
-"Circle" = "Circle"; 
+"Circle" = "Circle";
+"Show time left instead of percent" = "Show time left instead of percent";
+"hour left" = "hour left";
+"hours left" = "hours left";
+"minute left" = "minute left";
+"minutes left" = "minutes left"; 

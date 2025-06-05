@@ -19,6 +19,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     
     var scheduleManager: ScheduleManagerWindowController?
     
+    var displayPercent: Int = 0
+    var percentAnimationTimer: Timer?
+    var targetPercent: Int = 0
+    
     func applicationDidFinishLaunching(_ notification: Notification) {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.title = "0%"
@@ -41,6 +45,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         NotificationCenter.default.addObserver(self, selector: #selector(languageChanged), name: Notification.Name("AppLanguageChanged"), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(showScheduleTitleChanged), name: Notification.Name("ShowScheduleTitleChanged"), object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(statusBarIconStyleChanged), name: Notification.Name("StatusBarIconStyleChanged"), object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(showTimeLeftInsteadOfPercentChanged), name: Notification.Name("ShowTimeLeftInsteadOfPercentChanged"), object: nil)
     }
     
     @objc func scheduleListDidUpdate() {
@@ -54,8 +59,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let allSchedules = schedules
         let showTitle = UserDefaults.standard.bool(forKey: "ShowScheduleTitle")
         let iconStyle = UserDefaults.standard.string(forKey: "StatusBarIconStyle") ?? "none"
+        let showTimeLeft = UserDefaults.standard.bool(forKey: "ShowTimeLeftInsteadOfPercent")
         var percent: Int = 0
         var titleText: String = ""
+        var timeLeftText: String? = nil
         // 대표 일정 우선
         if let rep = allSchedules.first(where: { $0.isRepresentative }) {
             var startComp = rep.start
@@ -65,7 +72,13 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             let start = calendar.date(from: startComp) ?? now
             let end = calendar.date(from: endComp) ?? now
             percent = max(0, min(100, Int((now.timeIntervalSince(start) / max(1, end.timeIntervalSince(start))) * 100)))
-            titleText = showTitle ? "\(rep.title) \(percent)%" : "\(percent)%"
+            if showTimeLeft {
+                let remain = max(0, end.timeIntervalSince(now))
+                timeLeftText = self.formatTimeLeft(remain)
+                titleText = showTitle ? "\(rep.title) \(timeLeftText!)" : "\(timeLeftText!)"
+            } else {
+                titleText = showTitle ? "\(rep.title) \(percent)%" : "\(percent)%"
+            }
         } else {
             // 현재 시간 겹치는 일정 중 가장 빠른 것
             let candidates = allSchedules.compactMap { schedule -> (Schedule, Date)? in
@@ -86,27 +99,30 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let start = calendar.date(from: startComp) ?? now
                 let end = calendar.date(from: endComp) ?? now
                 percent = max(0, min(100, Int((now.timeIntervalSince(start) / max(1, end.timeIntervalSince(start))) * 100)))
-                titleText = showTitle ? "\(schedule.title) \(percent)%" : "\(percent)%"
+                if showTimeLeft {
+                    let remain = max(0, end.timeIntervalSince(now))
+                    timeLeftText = self.formatTimeLeft(remain)
+                    titleText = showTitle ? "\(schedule.title) \(timeLeftText!)" : "\(timeLeftText!)"
+                } else {
+                    titleText = showTitle ? "\(schedule.title) \(percent)%" : "\(percent)%"
+                }
             } else {
                 // 일정 없거나 해당 없음: 오늘의 %
                 let startDay = calendar.startOfDay(for: now)
                 let endDay = calendar.date(byAdding: .day, value: 1, to: startDay)!
                 let todayProgress = now.timeIntervalSince(startDay) / endDay.timeIntervalSince(startDay)
                 percent = Int(todayProgress * 100)
-                titleText = showTitle ? "Day - \(percent)%" : "\(percent)%"
+                if showTimeLeft {
+                    let remain = max(0, endDay.timeIntervalSince(now))
+                    timeLeftText = self.formatTimeLeft(remain)
+                    titleText = showTitle ? "Day - \(timeLeftText!)" : "\(timeLeftText!)"
+                } else {
+                    titleText = showTitle ? "Day - \(percent)%" : "\(percent)%"
+                }
             }
         }
-        DispatchQueue.main.async {
-            self.statusItem.button?.title = titleText
-            switch iconStyle {
-            case "battery":
-                self.statusItem.button?.image = self.drawBatteryIcon(percent: percent)
-            case "circle":
-                self.statusItem.button?.image = self.drawCircleIcon(percent: percent)
-            default:
-                self.statusItem.button?.image = nil
-            }
-        }
+        self.targetPercent = percent
+        self.animateStatusBarIcon(to: percent, titleText: titleText, iconStyle: iconStyle, showTimeLeft: showTimeLeft)
     }
     
     @objc func showMenu(_ sender: AnyObject?) {
@@ -318,6 +334,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         if scheduleManager == nil {
             scheduleManager = ScheduleManagerWindowController()
         }
+        if let window = scheduleManager?.window, let button = statusItem.button {
+            let buttonRect = button.window?.convertToScreen(button.frame) ?? .zero
+            let winSize = window.frame.size
+            let origin = NSPoint(x: buttonRect.origin.x + buttonRect.width/2 - winSize.width/2, y: buttonRect.origin.y - winSize.height - 8)
+            window.setFrameOrigin(origin)
+        }
         scheduleManager?.showWindow(nil)
     }
 
@@ -327,6 +349,12 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             settingsWindow?.onLanguageChanged = { [weak self] lang in
                 self?.applyLanguage(lang)
             }
+        }
+        if let window = settingsWindow?.window, let button = statusItem.button {
+            let buttonRect = button.window?.convertToScreen(button.frame) ?? .zero
+            let winSize = window.frame.size
+            let origin = NSPoint(x: buttonRect.origin.x + buttonRect.width/2 - winSize.width/2, y: buttonRect.origin.y - winSize.height - 8)
+            window.setFrameOrigin(origin)
         }
         settingsWindow?.showWindow(nil)
     }
@@ -348,6 +376,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     @objc func statusBarIconStyleChanged() {
+        updateStatusBarPercent()
+    }
+
+    @objc func showTimeLeftInsteadOfPercentChanged() {
         updateStatusBarPercent()
     }
 
@@ -401,6 +433,70 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         image.unlockFocus()
         image.isTemplate = true
         return image
+    }
+
+    func animateStatusBarIcon(to percent: Int, titleText: String, iconStyle: String, showTimeLeft: Bool) {
+        percentAnimationTimer?.invalidate()
+        let start = displayPercent
+        let end = percent
+        let duration: Double = 0.35
+        let frameCount = 15
+        if start == end || showTimeLeft {
+            DispatchQueue.main.async {
+                self.statusItem.button?.title = titleText
+                switch iconStyle {
+                case "battery":
+                    self.statusItem.button?.image = self.drawBatteryIcon(percent: end)
+                case "circle":
+                    self.statusItem.button?.image = self.drawCircleIcon(percent: end)
+                default:
+                    self.statusItem.button?.image = nil
+                }
+            }
+            return
+        }
+        var currentFrame = 0
+        percentAnimationTimer = Timer.scheduledTimer(withTimeInterval: duration/Double(frameCount), repeats: true) { [weak self] t in
+            guard let self = self else { t.invalidate(); return }
+            currentFrame += 1
+            let progress = min(1.0, Double(currentFrame)/Double(frameCount))
+            let value = Int(round(Double(start) + (Double(end-start) * progress)))
+            self.displayPercent = value
+            DispatchQueue.main.async {
+                self.statusItem.button?.title = titleText.replacingOccurrences(of: "\\d+%", with: "\(value)%", options: .regularExpression)
+                switch iconStyle {
+                case "battery":
+                    self.statusItem.button?.image = self.drawBatteryIcon(percent: value)
+                case "circle":
+                    self.statusItem.button?.image = self.drawCircleIcon(percent: value)
+                default:
+                    self.statusItem.button?.image = nil
+                }
+            }
+            if currentFrame >= frameCount {
+                t.invalidate()
+                self.displayPercent = end
+            }
+        }
+    }
+
+    func formatTimeLeft(_ interval: TimeInterval) -> String {
+        let totalMinutes = Int(interval / 60)
+        let hours = totalMinutes / 60
+        let minutes = totalMinutes % 60
+        let lm = LocalizedManager.shared
+        if hours > 0 {
+            let hourKey = hours == 1 ? "hour left" : "hours left"
+            let minKey = minutes == 1 ? "minute left" : "minutes left"
+            if minutes > 0 {
+                return "\(hours) \(lm.localized(hourKey)), \(minutes) \(lm.localized(minKey))"
+            } else {
+                return "\(hours) \(lm.localized(hourKey))"
+            }
+        } else {
+            let minKey = minutes == 1 ? "minute left" : "minutes left"
+            return "\(minutes) \(lm.localized(minKey))"
+        }
     }
 }
 

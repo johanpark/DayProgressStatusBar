@@ -18,4 +18,9 @@
 "Progress Icon" = "Fortschrittsicon";
 "None" = "Keins";
 "Battery" = "Batterie";
-"Circle" = "Kreis"; 
+"Circle" = "Kreis";
+"Show time left instead of percent" = "Restzeit statt Prozent anzeigen";
+"hour left" = "Stunde übrig";
+"hours left" = "Stunden übrig";
+"minute left" = "Minute übrig";
+"minutes left" = "Minuten übrig"; 
