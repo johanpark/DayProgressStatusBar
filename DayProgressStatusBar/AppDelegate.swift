@@ -62,23 +62,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let showTimeLeft = UserDefaults.standard.bool(forKey: "ShowTimeLeftInsteadOfPercent")
         var percent: Int = 0
         var titleText: String = ""
-        var timeLeftText: String? = nil
         // 대표 일정 우선
         if let rep = allSchedules.first(where: { $0.isRepresentative }) {
-            var startComp = rep.start
-            var endComp = rep.end
-            startComp.year = today.year; startComp.month = today.month; startComp.day = today.day
-            endComp.year = today.year; endComp.month = today.month; endComp.day = today.day
-            let start = calendar.date(from: startComp) ?? now
-            let end = calendar.date(from: endComp) ?? now
-            percent = max(0, min(100, Int((now.timeIntervalSince(start) / max(1, end.timeIntervalSince(start))) * 100)))
-            if showTimeLeft {
-                let remain = max(0, end.timeIntervalSince(now))
-                timeLeftText = self.formatTimeLeft(remain)
-                titleText = showTitle ? "\(rep.title) \(timeLeftText!)" : "\(timeLeftText!)"
-            } else {
-                titleText = showTitle ? "\(rep.title) \(percent)%" : "\(percent)%"
-            }
+            let result = generateStatusBarTitle(schedule: rep, now: now, today: today, showTitle: showTitle, showTimeLeft: showTimeLeft)
+            percent = result.percent
+            titleText = result.titleText
         } else {
             // 현재 시간 겹치는 일정 중 가장 빠른 것
             let candidates = allSchedules.compactMap { schedule -> (Schedule, Date)? in
@@ -91,38 +79,45 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 return (now >= startDate && now <= endDate) ? (schedule, startDate) : nil
             }
             if let selected = candidates.sorted(by: { $0.1 < $1.1 }).first {
-                let schedule = selected.0
-                var startComp = schedule.start
-                var endComp = schedule.end
-                startComp.year = today.year; startComp.month = today.month; startComp.day = today.day
-                endComp.year = today.year; endComp.month = today.month; endComp.day = today.day
-                let start = calendar.date(from: startComp) ?? now
-                let end = calendar.date(from: endComp) ?? now
-                percent = max(0, min(100, Int((now.timeIntervalSince(start) / max(1, end.timeIntervalSince(start))) * 100)))
-                if showTimeLeft {
-                    let remain = max(0, end.timeIntervalSince(now))
-                    timeLeftText = self.formatTimeLeft(remain)
-                    titleText = showTitle ? "\(schedule.title) \(timeLeftText!)" : "\(timeLeftText!)"
-                } else {
-                    titleText = showTitle ? "\(schedule.title) \(percent)%" : "\(percent)%"
-                }
+                let result = generateStatusBarTitle(schedule: selected.0, now: now, today: today, showTitle: showTitle, showTimeLeft: showTimeLeft)
+                percent = result.percent
+                titleText = result.titleText
             } else {
-                // 일정 없거나 해당 없음: 오늘의 %
-                let startDay = calendar.startOfDay(for: now)
-                let endDay = calendar.date(byAdding: .day, value: 1, to: startDay)!
-                let todayProgress = now.timeIntervalSince(startDay) / endDay.timeIntervalSince(startDay)
-                percent = Int(todayProgress * 100)
-                if showTimeLeft {
-                    let remain = max(0, endDay.timeIntervalSince(now))
-                    timeLeftText = self.formatTimeLeft(remain)
-                    titleText = showTitle ? "Day - \(timeLeftText!)" : "\(timeLeftText!)"
-                } else {
-                    titleText = showTitle ? "Day - \(percent)%" : "\(percent)%"
-                }
+                let result = generateStatusBarTitle(schedule: nil, now: now, today: today, showTitle: showTitle, showTimeLeft: showTimeLeft)
+                percent = result.percent
+                titleText = result.titleText
             }
         }
         self.targetPercent = percent
         self.animateStatusBarIcon(to: percent, titleText: titleText, iconStyle: iconStyle, showTimeLeft: showTimeLeft)
+    }
+    
+    func generateStatusBarTitle(schedule: Schedule?, now: Date, today: DateComponents, showTitle: Bool, showTimeLeft: Bool) -> (percent: Int, titleText: String) {
+        let calendar = Calendar.current
+        let startComp = schedule?.start ?? DateComponents()
+        let endComp = schedule?.end ?? DateComponents()
+        
+        var start = calendar.date(from: DateComponents(year: today.year, month: today.month, day: today.day,
+                                                       hour: startComp.hour, minute: startComp.minute)) ?? now
+        var end = calendar.date(from: DateComponents(year: today.year, month: today.month, day: today.day,
+                                                     hour: endComp.hour, minute: endComp.minute)) ?? now
+        
+        if schedule == nil {
+            start = calendar.startOfDay(for: now)
+            end = calendar.date(byAdding: .day, value: 1, to: start)!
+        }
+        
+        let percent = max(0, min(100, Int((now.timeIntervalSince(start) / max(1, end.timeIntervalSince(start))) * 100)))
+        
+        if showTimeLeft {
+            let remain = max(0, end.timeIntervalSince(now))
+            let timeLeftText = self.formatTimeLeft(remain)
+            let prefix = schedule?.title ?? "Day -"
+            return (percent, showTitle ? "\(prefix) \(timeLeftText)" : "\(timeLeftText)")
+        } else {
+            let prefix = schedule?.title ?? "Day -"
+            return (percent, showTitle ? "\(prefix) \(percent)%" : "\(percent)%")
+        }
     }
     
     @objc func showMenu(_ sender: AnyObject?) {
@@ -166,7 +161,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.button?.performClick(nil)
         DispatchQueue.main.async { self.statusItem.menu = nil }
     }
-
+    
     // 1단락: 일/월/년 % + ProgressBar 커스텀 뷰 (실제 데이터 연동)
     func makeDateProgressView() -> NSView {
         let view = NSView(frame: NSRect(x: 0, y: 0, width: 220, height: 110))
@@ -240,7 +235,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         stack.topAnchor.constraint(equalTo: view.topAnchor, constant: 6).isActive = true
         return view
     }
-
+    
     // 2단락: 대표 일정 뷰
     func makeRepresentativeScheduleView() -> NSView {
         let schedules = ScheduleStorage.shared.load()
@@ -277,7 +272,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         view.addSubview(label)
         return view
     }
-
+    
     // 3단락: 일정 리스트 아이템 뷰 (퍼센트, ProgressBar, 일정명, 시간, 핀셋)
     func makeScheduleListItemView(schedule: Schedule, index: Int) -> NSView {
         let now = Date()
@@ -302,7 +297,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         let isRep = schedule.isRepresentative
         return ScheduleMenuItemView(schedule: schedule, index: index, percent: percent, start: start, end: end, isRep: isRep, target: self, progress: progress)
     }
-
+    
     // 핀셋 클릭 시 대표 일정 토글
     @objc func toggleRepresentative(_ sender: NSButton) {
         let idx = sender.tag
@@ -321,7 +316,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self.showMenu(nil)
         }
     }
-
+    
     // formatTime을 static으로도 제공
     static func formatTimeStatic(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -329,7 +324,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         formatter.timeZone = TimeZone.current
         return formatter.string(from: date)
     }
-
+    
     @objc func openScheduleManager() {
         if scheduleManager == nil {
             scheduleManager = ScheduleManagerWindowController()
@@ -342,7 +337,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         scheduleManager?.showWindow(nil)
     }
-
+    
     @objc func openSettings() {
         if settingsWindow == nil {
             settingsWindow = SettingsWindowController()
@@ -358,31 +353,31 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         settingsWindow?.showWindow(nil)
     }
-
+    
     var settingsWindow: SettingsWindowController?
-
+    
     func applyLanguage(_ lang: String) {
         // 실제 언어 변경 로직은 여기서 처리 (UserDefaults 등 활용)
         // 예시: UserDefaults.standard.set(lang, forKey: "AppLanguage")
         // 그리고 NotificationCenter 등으로 전체 UI 갱신
     }
-
+    
     @objc func languageChanged() {
         showMenu(nil)
     }
-
+    
     @objc func showScheduleTitleChanged() {
         updateStatusBarPercent()
     }
-
+    
     @objc func statusBarIconStyleChanged() {
         updateStatusBarPercent()
     }
-
+    
     @objc func showTimeLeftInsteadOfPercentChanged() {
         updateStatusBarPercent()
     }
-
+    
     // 진행률 배터리 아이콘 그리기
     func drawBatteryIcon(percent: Int) -> NSImage? {
         let size = NSSize(width: 22, height: 12)
@@ -434,7 +429,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         image.isTemplate = true
         return image
     }
-
+    
     func animateStatusBarIcon(to percent: Int, titleText: String, iconStyle: String, showTimeLeft: Bool) {
         percentAnimationTimer?.invalidate()
         let start = displayPercent
@@ -479,7 +474,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
     }
-
+    
     func formatTimeLeft(_ interval: TimeInterval) -> String {
         let totalMinutes = Int(interval / 60)
         let hours = totalMinutes / 60
