@@ -263,11 +263,20 @@ class ScheduleManagerAddEditSheetController: NSWindowController {
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     func setupUI() {
-        guard let content = window?.contentView else { return }
+        createTitleField()
+        createPickers()
+        createColorWell()
+        createActionButtons()
+    }
+
+    private func createTitleField() {
         titleField.frame = NSRect(x: 20, y: 160, width: 260, height: 24)
+        window?.contentView?.addSubview(titleField)
+    }
+
+    private func createPickers() {
         startPicker.frame = NSRect(x: 20, y: 120, width: 260, height: 24)
         endPicker.frame = NSRect(x: 20, y: 90, width: 260, height: 24)
-        colorWell.frame = NSRect(x: 20, y: 60, width: 50, height: 24)
         startPicker.datePickerElements = .hourMinute
         endPicker.datePickerElements = .hourMinute
         startPicker.datePickerStyle = .textFieldAndStepper
@@ -278,15 +287,28 @@ class ScheduleManagerAddEditSheetController: NSWindowController {
         formatter.dateFormat = "HH:mm"
         startPicker.formatter = formatter
         endPicker.formatter = formatter
+        window?.contentView?.addSubview(startPicker)
+        window?.contentView?.addSubview(endPicker)
+    }
+
+    private func createColorWell() {
+        colorWell.frame = NSRect(x: 20, y: 60, width: 50, height: 24)
+        window?.contentView?.addSubview(colorWell)
+    }
+
+    private func createActionButtons() {
         saveButton.title = "저장"
         saveButton.frame = NSRect(x: 170, y: 20, width: 50, height: 30)
         saveButton.target = self
         saveButton.action = #selector(saveTapped)
+
         cancelButton.title = "취소"
         cancelButton.frame = NSRect(x: 230, y: 20, width: 50, height: 30)
         cancelButton.target = self
         cancelButton.action = #selector(cancelTapped)
-        [titleField, startPicker, endPicker, colorWell, saveButton, cancelButton].forEach { content.addSubview($0) }
+
+        window?.contentView?.addSubview(saveButton)
+        window?.contentView?.addSubview(cancelButton)
     }
     func applySchedule() {
         guard let schedule = editingSchedule else { return }
