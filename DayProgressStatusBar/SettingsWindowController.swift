@@ -1,5 +1,45 @@
 import Cocoa
 
+// MARK: - 옵션 모델화 및 상수화
+struct AppSettingsKey {
+    static let language = "AppLanguage"
+    static let showScheduleTitle = "ShowScheduleTitle"
+    static let progressIconStyle = "StatusBarIconStyle"
+    static let showTimeLeft = "ShowTimeLeftInsteadOfPercent"
+}
+enum ProgressIconStyle: String, CaseIterable {
+    case none, battery, circle
+    var localizedName: String {
+        switch self {
+        case .none: return LocalizedManager.shared.localized("None")
+        case .battery: return LocalizedManager.shared.localized("Battery")
+        case .circle: return LocalizedManager.shared.localized("Circle")
+        }
+    }
+}
+struct AppSettings {
+    static var shared = AppSettings()
+    var language: String {
+        get { UserDefaults.standard.string(forKey: AppSettingsKey.language) ?? "ko" }
+        set { UserDefaults.standard.set(newValue, forKey: AppSettingsKey.language) }
+    }
+    var showScheduleTitle: Bool {
+        get { UserDefaults.standard.bool(forKey: AppSettingsKey.showScheduleTitle) }
+        set { UserDefaults.standard.set(newValue, forKey: AppSettingsKey.showScheduleTitle) }
+    }
+    var progressIconStyle: ProgressIconStyle {
+        get { ProgressIconStyle(rawValue: UserDefaults.standard.string(forKey: AppSettingsKey.progressIconStyle) ?? "none") ?? .none }
+        set { UserDefaults.standard.set(newValue.rawValue, forKey: AppSettingsKey.progressIconStyle) }
+    }
+    var showTimeLeft: Bool {
+        get { UserDefaults.standard.bool(forKey: AppSettingsKey.showTimeLeft) }
+        set { UserDefaults.standard.set(newValue, forKey: AppSettingsKey.showTimeLeft) }
+    }
+}
+protocol SettingsDelegate: AnyObject {
+    func settingsDidChange(_ settings: AppSettings)
+}
+
 class SettingsWindowController: NSWindowController {
     // MARK: - UI Elements
     let languageLabel = NSTextField(labelWithString: "")
@@ -60,13 +100,15 @@ class SettingsWindowController: NSWindowController {
         configureLabel(languageLabel, y: 200)
         languageLabel.textColor = NSColor.labelColor
         configurePopup(languagePopup, y: 200, items: languages.map { $0.1 }, selected: getCurrentLanguageIndex())
+        languagePopup.target = self
+        languagePopup.action = #selector(languagePopupChanged)
         // 아이콘 스타일
         configureLabel(iconStyleLabel, y: 160)
         iconStyleLabel.textColor = NSColor.labelColor
-        configurePopup(iconStylePopup, y: 160, items: iconStyleOptions.map { LocalizedManager.shared.localized($0.1) }, selected: getCurrentIconStyleIndex())
+        configurePopup(iconStylePopup, y: 160, items: ProgressIconStyle.allCases.map { $0.localizedName }, selected: getCurrentIconStyleIndex())
         // 체크박스
-        configureCheckbox(showTitleCheckbox, y: 120, value: UserDefaults.standard.bool(forKey: "ShowScheduleTitle"))
-        configureCheckbox(showTimeLeftCheckbox, y: 90, value: UserDefaults.standard.bool(forKey: "ShowTimeLeftInsteadOfPercent"))
+        configureCheckbox(showTitleCheckbox, y: 120, value: AppSettings.shared.showScheduleTitle)
+        configureCheckbox(showTimeLeftCheckbox, y: 90, value: AppSettings.shared.showTimeLeft)
         // 버튼
         configureButton(saveButton, x: 100, y: 30, width: buttonWidth, title: LocalizedManager.shared.localized("Save"), action: #selector(saveTapped))
         saveButton.contentTintColor = NSColor.controlAccentColor
@@ -99,37 +141,37 @@ class SettingsWindowController: NSWindowController {
     }
     // MARK: - Data Helpers
     func getCurrentLanguageIndex() -> Int {
-        let currentLangCode = UserDefaults.standard.string(forKey: "AppLanguage") ?? "ko"
-        return languages.firstIndex(where: { $0.0 == currentLangCode }) ?? 0
+        return languages.firstIndex(where: { $0.0 == AppSettings.shared.language }) ?? 0
     }
     func getCurrentIconStyleIndex() -> Int {
-        let currentIconStyle = UserDefaults.standard.string(forKey: "StatusBarIconStyle") ?? "none"
-        return iconStyleOptions.firstIndex(where: { $0.0 == currentIconStyle }) ?? 0
+        return ProgressIconStyle.allCases.firstIndex(of: AppSettings.shared.progressIconStyle) ?? 0
     }
     // MARK: - Actions
     @objc func saveTapped() {
         let langIdx = languagePopup.indexOfSelectedItem
-        let langCode = languages[langIdx].0
-        UserDefaults.standard.set(langCode, forKey: "AppLanguage")
-        let showTitle = (showTitleCheckbox.state == .on)
-        UserDefaults.standard.set(showTitle, forKey: "ShowScheduleTitle")
+        AppSettings.shared.language = languages[langIdx].0
+        AppSettings.shared.showScheduleTitle = (showTitleCheckbox.state == .on)
         let iconStyleIdx = iconStylePopup.indexOfSelectedItem
-        let iconStyle = iconStyleOptions[iconStyleIdx].0
-        UserDefaults.standard.set(iconStyle, forKey: "StatusBarIconStyle")
-        let showTimeLeft = (showTimeLeftCheckbox.state == .on)
-        UserDefaults.standard.set(showTimeLeft, forKey: "ShowTimeLeftInsteadOfPercent")
+        AppSettings.shared.progressIconStyle = ProgressIconStyle.allCases[iconStyleIdx]
+        AppSettings.shared.showTimeLeft = (showTimeLeftCheckbox.state == .on)
         LocalizedManager.shared.updateBundle()
-        NotificationCenter.default.post(name: Notification.Name("AppLanguageChanged"), object: langCode)
-        NotificationCenter.default.post(name: Notification.Name("ShowScheduleTitleChanged"), object: showTitle)
-        NotificationCenter.default.post(name: Notification.Name("StatusBarIconStyleChanged"), object: iconStyle)
-        NotificationCenter.default.post(name: Notification.Name("ShowTimeLeftInsteadOfPercentChanged"), object: showTimeLeft)
-        onLanguageChanged?(langCode)
+        updateLocalizedTexts()
+        delegate?.settingsDidChange(AppSettings.shared)
+        onLanguageChanged?(AppSettings.shared.language)
         self.window?.close()
+        NotificationCenter.default.post(name: Notification.Name("AppLanguageChanged"), object: nil)
     }
     @objc func closeTapped() {
         self.window?.close()
     }
     @objc func languageChanged() {
+        updateLocalizedTexts()
+    }
+    @objc func languagePopupChanged() {
+        let langIdx = languagePopup.indexOfSelectedItem
+        AppSettings.shared.language = languages[langIdx].0
+        LocalizedManager.shared.updateBundle()
+        NotificationCenter.default.post(name: Notification.Name("AppLanguageChanged"), object: nil)
         updateLocalizedTexts()
     }
     // MARK: - Localized Texts
@@ -142,6 +184,7 @@ class SettingsWindowController: NSWindowController {
         saveButton.title = LocalizedManager.shared.localized("Save")
         closeButton.title = LocalizedManager.shared.localized("Close")
         // 아이콘 스타일 옵션 다국어 반영
-        configurePopup(iconStylePopup, y: iconStylePopup.frame.origin.y, items: iconStyleOptions.map { LocalizedManager.shared.localized($0.1) }, selected: getCurrentIconStyleIndex())
+        configurePopup(iconStylePopup, y: iconStylePopup.frame.origin.y, items: ProgressIconStyle.allCases.map { $0.localizedName }, selected: getCurrentIconStyleIndex())
     }
+    weak var delegate: SettingsDelegate?
 }

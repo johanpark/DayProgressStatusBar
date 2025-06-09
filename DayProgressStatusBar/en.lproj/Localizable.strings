@@ -12,7 +12,7 @@
 "Language" = "Language";
 "Today" = "Today";
 "Month" = "Month";
-"Year" = "Year";
+"Year" = "Year"; 
 "Show schedule title in status bar" = "Show schedule title in status bar";
 "Progress Icon" = "Progress Icon";
 "None" = "None";
@@ -22,4 +22,5 @@
 "hour left" = "hour left";
 "hours left" = "hours left";
 "minute left" = "minute left";
-"minutes left" = "minutes left"; 
+"minutes left" = "minutes left";
+"time left format" = "%d hours %d minutes left"; 

@@ -13,7 +13,7 @@
 "Today" = "今天";
 "Month" = "月";
 "Year" = "年";
-"No representative schedule" = "无代表日程";
+"No representative schedule" = "无代表日程"; 
 "Show schedule title in status bar" = "在状态栏显示日程名称";
 "Progress Icon" = "进度图标";
 "None" = "无";
@@ -23,4 +23,5 @@
 "hour left" = "小时剩余";
 "hours left" = "小时剩余";
 "minute left" = "分钟剩余";
-"minutes left" = "分钟剩余"; 
+"minutes left" = "分钟剩余";
+"time left format" = "剩余%d小时%d分钟"; 

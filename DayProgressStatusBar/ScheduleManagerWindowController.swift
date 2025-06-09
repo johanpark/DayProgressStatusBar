@@ -69,6 +69,7 @@ class ScheduleManagerWindowController: NSWindowController {
     }
 
     func reloadSchedules() {
+        print("[일정관리] 일정 리스트 새로 그림")
         schedules = ScheduleStorage.shared.load()
         for sub in stackView.arrangedSubviews { stackView.removeArrangedSubview(sub); sub.removeFromSuperview() }
         if schedules.isEmpty {
@@ -92,10 +93,20 @@ class ScheduleManagerWindowController: NSWindowController {
         stackView.distribution = .fill
     }
 
+    func saveSchedulesAndNotify() {
+        ScheduleStorage.shared.save(schedules)
+        NotificationCenter.default.post(name: .scheduleListUpdated, object: nil)
+        reloadSchedules()
+    }
+
     @objc func addTapped() {
         if addEditSheetController != nil { return }
         let controller = ScheduleManagerAddEditSheetController()
-        controller.completion = { [weak self] in self?.reloadSchedules() }
+        controller.completion = { [weak self] in
+            // add/edit sheet에서 저장 후 호출됨
+            self?.schedules = ScheduleStorage.shared.load()
+            self?.saveSchedulesAndNotify()
+        }
         self.addEditSheetController = controller
         guard let sheetWindow = controller.window else { return }
         self.window?.beginSheet(sheetWindow) { [weak self] _ in self?.addEditSheetController = nil }
@@ -104,7 +115,11 @@ class ScheduleManagerWindowController: NSWindowController {
         let idx = sender.tag
         let schedule = schedules[idx]
         let controller = ScheduleManagerAddEditSheetController(schedule: schedule, index: idx)
-        controller.completion = { [weak self] in self?.reloadSchedules() }
+        controller.completion = { [weak self] in
+            // add/edit sheet에서 저장 후 호출됨
+            self?.schedules = ScheduleStorage.shared.load()
+            self?.saveSchedulesAndNotify()
+        }
         self.addEditSheetController = controller
         guard let sheetWindow = controller.window else { return }
         self.window?.beginSheet(sheetWindow) { [weak self] _ in self?.addEditSheetController = nil }
@@ -112,15 +127,13 @@ class ScheduleManagerWindowController: NSWindowController {
     @objc func deleteTapped(_ sender: NSButton) {
         let idx = sender.tag
         schedules.remove(at: idx)
-        ScheduleStorage.shared.save(schedules)
-        reloadSchedules()
+        saveSchedulesAndNotify()
     }
     @objc func repTapped(_ sender: NSButton) {
         let idx = sender.tag
         for i in 0..<schedules.count { schedules[i].isRepresentative = false }
         schedules[idx].isRepresentative = true
-        ScheduleStorage.shared.save(schedules)
-        reloadSchedules()
+        saveSchedulesAndNotify()
     }
     @objc func closeWindow() {
         if let window = self.window, let parent = window.sheetParent {
@@ -130,6 +143,7 @@ class ScheduleManagerWindowController: NSWindowController {
         }
     }
     @objc func languageChanged() {
+        print("[일정관리] 언어 변경 감지")
         LocalizedManager.shared.updateBundle()
         window?.title = LocalizedManager.shared.localized("Manage Schedules")
         closeButton.title = LocalizedManager.shared.localized("Close")
@@ -254,12 +268,15 @@ class ScheduleManagerAddEditSheetController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = schedule == nil ? "일정 추가" : "일정 수정"
+        // 창 타이틀 다국어 처리
+        window.title = LocalizedManager.shared.localized(schedule == nil ? "Add Schedule" : "Edit Schedule")
         super.init(window: window)
         self.editingSchedule = schedule
         self.editingIndex = index
+        NotificationCenter.default.addObserver(self, selector: #selector(languageChanged), name: Notification.Name("AppLanguageChanged"), object: nil)
         setupUI()
         applySchedule()
+        updateLocalizedTexts()
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
     func setupUI() {
@@ -268,12 +285,10 @@ class ScheduleManagerAddEditSheetController: NSWindowController {
         createColorWell()
         createActionButtons()
     }
-
     private func createTitleField() {
         titleField.frame = NSRect(x: 20, y: 160, width: 260, height: 24)
         window?.contentView?.addSubview(titleField)
     }
-
     private func createPickers() {
         startPicker.frame = NSRect(x: 20, y: 120, width: 260, height: 24)
         endPicker.frame = NSRect(x: 20, y: 90, width: 260, height: 24)
@@ -290,23 +305,19 @@ class ScheduleManagerAddEditSheetController: NSWindowController {
         window?.contentView?.addSubview(startPicker)
         window?.contentView?.addSubview(endPicker)
     }
-
     private func createColorWell() {
         colorWell.frame = NSRect(x: 20, y: 60, width: 50, height: 24)
         window?.contentView?.addSubview(colorWell)
     }
-
     private func createActionButtons() {
-        saveButton.title = "저장"
+        saveButton.title = LocalizedManager.shared.localized("Save")
         saveButton.frame = NSRect(x: 170, y: 20, width: 50, height: 30)
         saveButton.target = self
         saveButton.action = #selector(saveTapped)
-
-        cancelButton.title = "취소"
+        cancelButton.title = LocalizedManager.shared.localized("Cancel")
         cancelButton.frame = NSRect(x: 230, y: 20, width: 50, height: 30)
         cancelButton.target = self
         cancelButton.action = #selector(cancelTapped)
-
         window?.contentView?.addSubview(saveButton)
         window?.contentView?.addSubview(cancelButton)
     }
@@ -348,5 +359,13 @@ class ScheduleManagerAddEditSheetController: NSWindowController {
         } else {
             self.window?.close()
         }
+    }
+    @objc func languageChanged() {
+        updateLocalizedTexts()
+    }
+    func updateLocalizedTexts() {
+        window?.title = LocalizedManager.shared.localized(editingSchedule == nil ? "Add Schedule" : "Edit Schedule")
+        saveButton.title = LocalizedManager.shared.localized("Save")
+        cancelButton.title = LocalizedManager.shared.localized("Cancel")
     }
 }

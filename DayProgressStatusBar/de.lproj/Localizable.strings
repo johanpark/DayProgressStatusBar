@@ -13,14 +13,11 @@
 "Today" = "Heute";
 "Month" = "Monat";
 "Year" = "Jahr";
-"No representative schedule" = "Keine Haupt-Termine";
+"No representative schedule" = "Keine Haupt-Termine"; 
 "Show schedule title in status bar" = "Terminname in der Statusleiste anzeigen";
 "Progress Icon" = "Fortschrittsicon";
 "None" = "Keins";
 "Battery" = "Batterie";
 "Circle" = "Kreis";
 "Show time left instead of percent" = "Restzeit statt Prozent anzeigen";
-"hour left" = "Stunde übrig";
-"hours left" = "Stunden übrig";
-"minute left" = "Minute übrig";
-"minutes left" = "Minuten übrig"; 
+"time left format" = "%d Std. %d Min. übrig"; 

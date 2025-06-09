@@ -13,7 +13,7 @@
 "Today" = "今日";
 "Month" = "月";
 "Year" = "年";
-"No representative schedule" = "代表スケジュールなし";
+"No representative schedule" = "代表スケジュールなし"; 
 "Show schedule title in status bar" = "ステータスバーにスケジュール名を表示";
 "Progress Icon" = "進捗アイコン";
 "None" = "なし";
@@ -23,4 +23,5 @@
 "hour left" = "時間残り";
 "hours left" = "時間残り";
 "minute left" = "分残り";
-"minutes left" = "分残り"; 
+"minutes left" = "分残り";
+"time left format" = "%d時間%d分残り"; 

@@ -13,7 +13,7 @@
 "Today" = "오늘";
 "Month" = "월";
 "Year" = "년";
-"No representative schedule" = "대표 일정 없음";
+"No representative schedule" = "대표 일정 없음"; 
 "Show schedule title in status bar" = "상단바에 일정명 표기";
 "Progress Icon" = "진행률 아이콘";
 "None" = "없음";
@@ -23,4 +23,5 @@
 "hour left" = "시간 남음";
 "hours left" = "시간 남음";
 "minute left" = "분 남음";
-"minutes left" = "분 남음"; 
+"minutes left" = "분 남음";
+"time left format" = "%d시간 %d분 남음"; 
