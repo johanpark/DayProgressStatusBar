@@ -24,3 +24,6 @@
 "minute left" = "minute left";
 "minutes left" = "minutes left";
 "time left format" = "%d hours %d minutes left"; 
+"Title" = "Title";
+"Time" = "Time";
+"Color" = "Color"; 

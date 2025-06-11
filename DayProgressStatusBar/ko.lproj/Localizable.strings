@@ -24,4 +24,8 @@
 "hours left" = "시간 남음";
 "minute left" = "분 남음";
 "minutes left" = "분 남음";
-"time left format" = "%d시간 %d분 남음"; 
+"time left format" = "%d시간 %d분 남음";
+
+"Title" = "제목";
+"Time" = "시간";
+"Color" = "색상"; 

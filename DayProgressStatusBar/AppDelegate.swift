@@ -29,6 +29,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var scheduleManager: ScheduleManagerWindowController?
     
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSApp.setActivationPolicy(.accessory)
+
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         statusItem.button?.title = "0%"
         
@@ -189,8 +191,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(quitItem)
         statusItem.menu = menu
         if sender != nil {
-            statusItem.button?.performClick(nil)
-            DispatchQueue.main.async { self.statusItem.menu = nil }
+        statusItem.button?.performClick(nil)
+        DispatchQueue.main.async { self.statusItem.menu = nil }
         }
     }
 
@@ -347,8 +349,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             return
-        }
-        
+}
+
         // --- Animate only if the schedule is the same ---
         percentAnimationTimer?.invalidate()
         animationID += 1

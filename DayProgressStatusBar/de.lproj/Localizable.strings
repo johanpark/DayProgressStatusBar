@@ -20,4 +20,7 @@
 "Battery" = "Batterie";
 "Circle" = "Kreis";
 "Show time left instead of percent" = "Restzeit statt Prozent anzeigen";
-"time left format" = "%d Std. %d Min. übrig"; 
+"time left format" = "%d Stunden %d Minuten übrig";
+"Title" = "Titel";
+"Time" = "Zeit";
+"Color" = "Farbe"; 
