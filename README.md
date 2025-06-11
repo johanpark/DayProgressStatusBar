@@ -4,7 +4,7 @@
 It shows the percentage of time passed based on either the full day or your custom schedule, and lets you choose a representative schedule to display.
 
 ![image](https://github.com/user-attachments/assets/f56c8e07-3afc-41ab-a734-76918cc6f6e5)  
-![image](https://github.com/user-attachments/assets/d0d2b11c-2879-4f00-862f-9fb83b5b0fc7)
+![image](https://github.com/user-attachments/assets/7b084e99-42b2-4744-be6f-5be24701e839)
 
 ---
 
