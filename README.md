@@ -1,3 +1,7 @@
+<p align="right">
+🇰🇷 <a href="./README.ko.md">한국어</a> | 🇺🇸 <a href="./README.md">English</a>
+</p>
+
 # 🕒 DayProgressStatusBar
 
 **DayProgressStatusBar** is a lightweight macOS utility that displays your day's progress directly in the menu bar.  
