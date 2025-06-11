@@ -98,7 +98,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 let duration = end.timeIntervalSince(start)
                 progress = duration > 0 ? now.timeIntervalSince(start) / duration : 0
             }
-            return (schedule, Int((progress * 100).rounded()), progress, start, end)
+            return (schedule, Int(progress * 100), progress, start, end)
         }
         
         // --- Determine Current Schedule for Status Bar from the Single Source of Truth ---
@@ -128,7 +128,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             self.currentScheduleInfo = (info.schedule, percent, title)
         } else {
             // No active schedule, use Day progress as fallback
-            let percent = Int((self.dayProgress * 100).rounded())
+            let percent = Int(self.dayProgress * 100)
             let title: String
             if showTimeLeft {
                 let endOfDay = calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: now))!
@@ -204,7 +204,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         stack.alignment = .leading
         stack.translatesAutoresizingMaskIntoConstraints = false
 
-        let todayLabel = NSTextField(labelWithString: String(format: "%@  %2d%%", LocalizedManager.shared.localized("Today"), Int((self.dayProgress * 100).rounded())))
+        let todayLabel = NSTextField(labelWithString: String(format: "%@  %2d%%", LocalizedManager.shared.localized("Today"), Int(self.dayProgress * 100)))
         todayLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         let todayBar = NSProgressIndicator()
         todayBar.minValue = 0.0; todayBar.maxValue = 1.0
@@ -214,7 +214,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         todayBar.heightAnchor.constraint(equalToConstant: 8).isActive = true
         todayBar.widthAnchor.constraint(equalToConstant: 180).isActive = true
 
-        let monthLabel = NSTextField(labelWithString: String(format: "%@  %2d%%", LocalizedManager.shared.localized("Month"), Int((self.monthProgress * 100).rounded())))
+        let monthLabel = NSTextField(labelWithString: String(format: "%@  %2d%%", LocalizedManager.shared.localized("Month"), Int(self.monthProgress * 100)))
         monthLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         let monthBar = NSProgressIndicator()
         monthBar.minValue = 0.0; monthBar.maxValue = 1.0
@@ -224,7 +224,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         monthBar.heightAnchor.constraint(equalToConstant: 8).isActive = true
         monthBar.widthAnchor.constraint(equalToConstant: 180).isActive = true
 
-        let yearLabel = NSTextField(labelWithString: String(format: "%@   %2d%%", LocalizedManager.shared.localized("Year"), Int((self.yearProgress * 100).rounded())))
+        let yearLabel = NSTextField(labelWithString: String(format: "%@   %2d%%", LocalizedManager.shared.localized("Year"), Int(self.yearProgress * 100)))
         yearLabel.font = NSFont.systemFont(ofSize: 13, weight: .medium)
         let yearBar = NSProgressIndicator()
         yearBar.minValue = 0.0; yearBar.maxValue = 1.0
