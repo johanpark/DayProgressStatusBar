@@ -26,7 +26,7 @@ It shows the percentage of time passed based on either the full day or your cust
 
 ## 📦 Installation
 
-1. Download the `.dmg` or `.zip` file from the [Releases](https://github.com/yourname/DayProgressStatusBar/releases) tab
+1. Download the `.dmg` or `.zip` file from the [Releases](https://github.com/johanpark/DayProgressStatusBar/releases) tab
 2. Move the app into your `/Applications` folder
 3. If macOS blocks the app, run the following command (once only):
 
