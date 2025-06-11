@@ -26,7 +26,7 @@
 
 ## 📦 설치 방법 (Installation)
 
-1. [Releases](https://github.com/yourname/DayProgressStatusBar/releases) 탭에서 `.dmg` 또는 `.zip` 다운로드
+1. [Releases](https://github.com/johanpark/DayProgressStatusBar/releases) 탭에서 `.dmg` 또는 `.zip` 다운로드
 2. 앱을 `/Applications` 폴더에 이동
 3. 보안 경고 발생 시 아래 명령어 실행 (한 번만):
 
