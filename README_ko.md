@@ -1,3 +1,6 @@
+<p align="right">
+🇰🇷 <a href="./README.ko.md">한국어</a> | 🇺🇸 <a href="./README.md">English</a>
+</p>
 # 🕒 DayProgressStatusBar
 
 **DayProgressStatusBar**는 하루의 흐름을 macOS 상단바에서 직관적으로 확인할 수 있는 작고 가벼운 유틸리티입니다.  
