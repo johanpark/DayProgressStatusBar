@@ -158,6 +158,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
     
     @objc func showMenu(_ sender: AnyObject?) {
+        updateAllProgress()
         let menu = NSMenu()
         let progressItem = NSMenuItem()
         progressItem.view = makeDateProgressView()
@@ -190,10 +191,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         quitItem.target = NSApp
         menu.addItem(quitItem)
         statusItem.menu = menu
-        if sender != nil {
         statusItem.button?.performClick(nil)
         DispatchQueue.main.async { self.statusItem.menu = nil }
-        }
     }
 
     func makeDateProgressView() -> NSView {
@@ -349,7 +348,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 }
             }
             return
-}
+        }
 
         // --- Animate only if the schedule is the same ---
         percentAnimationTimer?.invalidate()

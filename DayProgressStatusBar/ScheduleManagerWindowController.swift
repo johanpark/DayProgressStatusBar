@@ -69,7 +69,6 @@ class ScheduleManagerWindowController: NSWindowController {
     }
 
     func reloadSchedules() {
-        print("[일정관리] 일정 리스트 새로 그림")
         schedules = ScheduleStorage.shared.load()
         for sub in stackView.arrangedSubviews { stackView.removeArrangedSubview(sub); sub.removeFromSuperview() }
         if schedules.isEmpty {
@@ -143,7 +142,6 @@ class ScheduleManagerWindowController: NSWindowController {
         }
     }
     @objc func languageChanged() {
-        print("[일정관리] 언어 변경 감지")
         LocalizedManager.shared.updateBundle()
         window?.title = LocalizedManager.shared.localized("Manage Schedules")
         closeButton.title = LocalizedManager.shared.localized("Close")
